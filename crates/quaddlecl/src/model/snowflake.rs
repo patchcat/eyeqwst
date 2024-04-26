@@ -45,7 +45,7 @@ macro_rules! newtype_sf_impl {
             }
         }
 
-        impl crate::snowflake::Snowflake for $ty {}
+        impl crate::model::snowflake::Snowflake for $ty {}
     }
 }
 
