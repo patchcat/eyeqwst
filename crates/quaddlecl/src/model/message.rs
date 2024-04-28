@@ -4,6 +4,7 @@ use super::{channel::ChannelId, snowflake::{extra_sf_impls, newtype_sf_impl}, us
 
 /// Not exposed to clients yet.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct MessageId(u64);
 
 newtype_sf_impl!(MessageId);
