@@ -5,7 +5,7 @@ use super::snowflake::{extra_sf_impls, newtype_sf_impl};
 /// A Quaddle user ID.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct UserId(u64);
+pub struct UserId(pub u64);
 
 newtype_sf_impl!(UserId);
 extra_sf_impls!(UserId);
