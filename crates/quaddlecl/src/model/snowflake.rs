@@ -51,8 +51,9 @@ macro_rules! newtype_sf_impl {
 
 macro_rules! extra_sf_impls {
     ($ty:ty) => {
-        impl From<$ty> for DateTime<Utc> {
+        impl From<$ty> for ::chrono::DateTime<::chrono::Utc> {
             fn from(sf: $ty) -> Self {
+                use crate::model::snowflake::Snowflake;
                 sf.timestamp()
             }
         }
