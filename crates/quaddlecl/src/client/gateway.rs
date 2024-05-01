@@ -84,6 +84,12 @@ impl Gateway {
             None => Err(Error::UnexpectedSocketClose),
         }
     }
+
+    /// Subscribes to the channel with ID `channel_id`
+    pub async fn subscribe(&mut self, channel_id: ChannelId) -> Result<(), Error> {
+        self.send(ClientGatewayMessage::Subscribe { channel_id })
+            .await
+    }
 }
 
 /// A lower-level way of sending gateway messages.
@@ -133,6 +139,8 @@ impl Drop for Gateway {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
     use crate::client::http::tests::{make_http, make_signed_in, make_username};
 
@@ -175,5 +183,35 @@ mod tests {
             .expect("failed to identify");
 
         assert_eq!(user.name, uname);
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
+    async fn test_subscribe() {
+        let http = make_signed_in().await;
+        let mut gateway = make_gateway().await;
+
+        gateway.identify(http.token().expect("not logged in"))
+               .await
+               .expect("failed to identify");
+
+        gateway.subscribe(ChannelId(1))
+               .await
+               .expect("failed to send the subscribe message");
+
+        http.create_message(ChannelId(1), "sussy balls")
+            .await
+            .expect("failed to send a message");
+
+        let GatewayEvent::MessageCreate { message } = gateway
+            .try_next()
+            .await
+            .expect("error receiving event")
+            .expect("gateway socket closed")
+        else {
+            panic!("received an unexpected event")
+        };
+
+        assert_eq!(message.content, "sussy balls");
     }
 }
