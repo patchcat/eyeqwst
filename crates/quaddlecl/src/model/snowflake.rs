@@ -57,6 +57,14 @@ macro_rules! extra_sf_impls {
                 sf.timestamp()
             }
         }
+
+        impl ::std::fmt::Display for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
+                   -> Result<(), ::std::fmt::Error> {
+                write!(f, "{id}",
+                       id = self.0)
+            }
+        }
     }
 }
 

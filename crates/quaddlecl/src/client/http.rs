@@ -2,7 +2,7 @@ use reqwest::{header, Client, Method};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
-use crate::model::{channel::ChannelId, message::Message, user::User};
+use crate::model::{channel::ChannelId, message::{Message, MessageId}, user::User};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -27,10 +27,6 @@ struct ApiErrorResponse {
 }
 
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MessageHistoryResponse {
-    messages: Vec<Message>,
-}
 
 #[derive(Debug, Clone)]
 pub struct Request<Path, Json, Query> {
@@ -178,16 +174,44 @@ impl Http {
         self.fire(Request {
             method: Method::POST,
             needs_login: true,
-            path: ["channels", &channel_id.0.to_string(), "messages"],
+            path: ["channels", &channel_id.to_string(), "messages"],
             json: &CreateMessageRequest { content },
             query: ()
         }).await
+    }
+
+    /// Gets message history.
+    pub async fn message_history(
+        &self,
+        channel_id: ChannelId,
+        before: Option<MessageId>,
+    ) -> Result<Vec<Message>, Error> {
+        #[derive(Deserialize)]
+        struct MessageHistoryResponse {
+            messages: Vec<Message>,
+        }
+
+        #[derive(Serialize)]
+        struct MessageHistoryQuery {
+            before: Option<MessageId>,
+        }
+
+        let r: MessageHistoryResponse = self.fire(Request {
+            method: Method::GET,
+            needs_login: true,
+            path: ["channels", &channel_id.to_string(), "messages"],
+            json: &(),
+            query: &MessageHistoryQuery { before },
+        }).await?;
+
+        Ok(r.messages)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
     use rand::{distributions::{Alphanumeric, DistString}, thread_rng};
+    use serial_test::serial;
 
     use super::*;
 
@@ -251,13 +275,57 @@ pub mod tests {
     }
 
     #[tokio::test]
+    #[serial(message_create)]
     async fn test_create_message() {
         let http = make_signed_in().await;
 
         let msg = http.create_message(ChannelId(1), "meow")
+                      .await
+                      .expect("failed to create message");
+
+        assert_eq!(msg.content, "meow");
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
+    async fn test_message_history_latest() {
+        let http = make_signed_in().await;
+
+        for content in ["meow1", "meow2"] {
+            http.create_message(ChannelId(1), content)
+                .await
+                .expect("failed to create message");
+        }
+
+        let hist = http.message_history(ChannelId(1), None)
+                       .await
+                       .expect("failed to retrieve message history");
+
+        assert_eq!(hist[0].content, "meow2");
+        assert_eq!(hist[1].content, "meow1");
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
+    async fn test_message_history_before() {
+        let http = make_signed_in().await;
+
+        http.create_message(ChannelId(1), "meow1")
             .await
             .expect("failed to create message");
 
-        assert_eq!(msg.content, "meow");
+        let msg = http.create_message(ChannelId(1), "meow2")
+                      .await
+                      .expect("failed to create message");
+
+        http.create_message(ChannelId(1), "meow3")
+            .await
+            .expect("failed to create message");
+
+        let hist = http.message_history(ChannelId(1), Some(msg.id))
+                       .await
+                       .expect("failed to retrieve message history");
+
+        assert_eq!(hist[0].content, "meow1");
     }
 }

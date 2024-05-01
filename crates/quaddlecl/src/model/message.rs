@@ -16,6 +16,7 @@ extra_sf_impls!(MessageId);
 #[derive(Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Message {
+    pub id: MessageId,
     pub author: User,
     pub channel: ChannelId,
     pub content: String,
