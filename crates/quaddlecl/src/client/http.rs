@@ -224,7 +224,7 @@ pub mod tests {
     }
 
     /// Helper function to make a client.
-    pub fn make_client() -> Http {
+    pub fn make_http() -> Http {
         let quaddle_url = Url::parse("http://localhost:8080")
             .expect("could not parse URL");
 
@@ -234,7 +234,7 @@ pub mod tests {
 
     /// Helper function to make a client that's signed in to a user account.
     pub async fn make_signed_in() -> Http {
-        let mut http = make_client();
+        let mut http = make_http();
         let uname = make_username();
 
         http.signup(&uname, "the_meower")
@@ -250,7 +250,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_signup() {
-        let http = make_client();
+        let http = make_http();
         let uname = make_username();
 
         let user = http.signup(&uname, "the_meower")
@@ -262,7 +262,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_login() {
-        let mut http = make_client();
+        let mut http = make_http();
         let uname = make_username();
 
         http.signup(&uname, "the_meower")
