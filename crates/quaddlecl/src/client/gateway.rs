@@ -40,6 +40,7 @@ pub struct Gateway {
 }
 
 impl Gateway {
+    /// Connects to the gateway of the Quaddle instance at `quaddle_url`.
     pub async fn connect(mut quaddle_url: Url) -> Result<Gateway, Error> {
         let Ok(mut segments) = quaddle_url.path_segments_mut() else {
             return Err(Error::InvalidUrl(quaddle_url))
