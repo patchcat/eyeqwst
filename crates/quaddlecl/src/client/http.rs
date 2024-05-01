@@ -175,11 +175,21 @@ impl Http {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
+    use rand::{distributions::{Alphanumeric, DistString}, thread_rng};
+
     use super::*;
 
-    // Helper function to make a client.
-    fn make_client() -> Http {
+    /// Generates a random username.
+    pub fn make_username() -> String {
+        let discrim = Alphanumeric
+            .sample_string(&mut thread_rng(), 8);
+
+        format!("meow_{discrim}")
+    }
+
+    /// Helper function to make a client.
+    pub fn make_client() -> Http {
         let quaddle_url = Url::parse("http://localhost:8080")
             .expect("could not parse URL");
 
@@ -187,26 +197,44 @@ mod tests {
             .expect("could not create a REST client instance")
     }
 
+    /// Helper function to make a client that's signed in to a user account.
+    pub async fn make_signed_in() -> Http {
+        let mut http = make_client();
+        let uname = make_username();
+
+        http.signup(&uname, "the_meower")
+            .await
+            .expect("failed to sign up");
+
+        http.login(&uname, "the_meower")
+            .await
+            .expect("failed to log in");
+
+        http
+    }
+
     #[tokio::test]
     async fn test_signup() {
         let http = make_client();
+        let uname = make_username();
 
-        let user = http.signup("meow1", "the_meower")
+        let user = http.signup(&uname, "the_meower")
             .await
             .expect("signup failed");
 
-        assert_eq!(user.name, "meow1");
+        assert_eq!(user.name, uname);
     }
 
     #[tokio::test]
     async fn test_login() {
         let mut http = make_client();
+        let uname = make_username();
 
-        http.signup("meow2", "the_meower")
+        http.signup(&uname, "the_meower")
             .await
             .expect("signup failed");
 
-        http.login("meow2", "the_meower")
+        http.login(&uname, "the_meower")
             .await
             .expect("login failed");
     }
