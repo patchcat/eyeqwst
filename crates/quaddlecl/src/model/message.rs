@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::{channel::ChannelId, snowflake::{extra_sf_impls, newtype_sf_impl}, user::UserId};
+use super::channel::ChannelId;
+use super::snowflake::{extra_sf_impls, newtype_sf_impl};
+use super::user::User;
 
 /// Not exposed to clients yet.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
@@ -14,7 +16,7 @@ extra_sf_impls!(MessageId);
 #[derive(Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Message {
-    pub author_id: UserId,
-    pub channel_id: ChannelId,
+    pub author: User,
+    pub channel: ChannelId,
     pub content: String,
 }

@@ -2,7 +2,7 @@ use reqwest::{header, Client, Method};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
-use crate::model::{message::Message, user::User};
+use crate::model::{channel::ChannelId, message::Message, user::User};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -26,11 +26,6 @@ struct ApiErrorResponse {
     reason: String,
 }
 
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct CreateMessageRequest {
-    content: String,
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MessageHistoryResponse {
@@ -172,6 +167,22 @@ impl Http {
 
         Ok(())
     }
+
+    /// Creates a message.
+    pub async fn create_message(&self, channel_id: ChannelId, content: &str) -> Result<Message, Error> {
+        #[derive(Serialize)]
+        struct CreateMessageRequest<'a> {
+            content: &'a str,
+        }
+
+        self.fire(Request {
+            method: Method::POST,
+            needs_login: true,
+            path: ["channels", &channel_id.0.to_string(), "messages"],
+            json: &CreateMessageRequest { content },
+            query: ()
+        }).await
+    }
 }
 
 #[cfg(test)]
@@ -237,5 +248,16 @@ pub mod tests {
         http.login(&uname, "the_meower")
             .await
             .expect("login failed");
+    }
+
+    #[tokio::test]
+    async fn test_create_message() {
+        let http = make_signed_in().await;
+
+        let msg = http.create_message(ChannelId(1), "meow")
+            .await
+            .expect("failed to create message");
+
+        assert_eq!(msg.content, "meow");
     }
 }
