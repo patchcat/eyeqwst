@@ -100,6 +100,11 @@ impl Http {
         })
     }
 
+    /// Returns the token, if logged in.
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
+    }
+
     /// Fires a request using the REST.
     pub async fn fire<PathSegment, Path, Json, Query, Retval>(
         &self,
