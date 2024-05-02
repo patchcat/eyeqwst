@@ -1,4 +1,5 @@
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
+use reqwest::header::USER_AGENT;
 use reqwest::Client;
 use reqwest_websocket::{RequestBuilderExt, WebSocket};
 use reqwest_websocket::Message as WsMessage;
@@ -52,7 +53,7 @@ pub struct Gateway {
 
 impl Gateway {
     /// Connects to the gateway of the Quaddle instance at `quaddle_url`.
-    pub async fn connect(mut quaddle_url: Url) -> Result<Gateway, Error> {
+    pub async fn connect(mut quaddle_url: Url, user_agent: String) -> Result<Gateway, Error> {
         let Ok(mut segments) = quaddle_url.path_segments_mut() else {
             return Err(Error::InvalidUrl(quaddle_url))
         };
@@ -63,6 +64,7 @@ impl Gateway {
 
         let ws = Client::default()
             .get(quaddle_url)
+            .header(USER_AGENT, user_agent)
             .upgrade()
             .send()
             .await?
@@ -148,7 +150,7 @@ mod tests {
         let url = Url::parse("http://localhost:8080")
             .expect("could not parse URL");
 
-        Gateway::connect(url)
+        Gateway::connect(url, "quaddlecl tester".to_string())
             .await
             .expect("failed to connect to local Quaddle server")
     }
@@ -158,7 +160,7 @@ mod tests {
         let url = Url::parse("http://localhost:8080")
             .expect("failed to parse URL");
 
-        Gateway::connect(url)
+        Gateway::connect(url, "quaddlecl tester".to_string())
             .await
             .expect("failed to connect to local Quaddle server");
     }
