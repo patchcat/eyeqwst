@@ -1,3 +1,6 @@
+use std::task::Poll;
+
+use futures::stream::FusedStream;
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use reqwest::header::USER_AGENT;
 use reqwest::Client;
@@ -49,6 +52,7 @@ pub enum GatewayEvent {
 
 pub struct Gateway {
     ws: WebSocket,
+    closed: bool,
 }
 
 impl Gateway {
@@ -71,7 +75,7 @@ impl Gateway {
             .into_websocket()
             .await?;
 
-        Ok(Self { ws })
+        Ok(Self { ws, closed: true })
     }
 
     /// Sends an identify message and returns the session ID.
@@ -121,6 +125,10 @@ impl Stream for Gateway {
     type Item = Result<GatewayEvent, Error>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
+        if self.closed {
+            return Poll::Ready(None);
+        }
+
         self.ws
             .poll_next_unpin(cx)
             .map_err(Error::from)
@@ -130,6 +138,12 @@ impl Stream for Gateway {
                 Some(Err(e)) => Some(Err(e)),
                 None => None,
             })
+    }
+}
+
+impl FusedStream for Gateway {
+    fn is_terminated(&self) -> bool {
+        self.closed
     }
 }
 
