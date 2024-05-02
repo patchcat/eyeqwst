@@ -5,4 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-iced = "0.12.1"
+futures = "0.3.30"
+iced = { version = "0.12.1", features = ["lazy"] }
+quaddlecl = { path = "crates/quaddlecl" }
+url = "2.5.0"
