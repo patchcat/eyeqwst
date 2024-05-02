@@ -5,12 +5,14 @@ use url::Url;
 use crate::model::user::User;
 use crate::Error;
 
+/// Holds the HTTP and gateway clients.
 pub struct Client {
     http: Http,
     gateway: Gateway,
 }
 
 impl Client {
+    /// Creates a new Client.
     pub async fn new(quaddle_url: Url, user_agent: &str) -> Result<Self, Error> {
         Ok(Self {
             http: Http::new(quaddle_url.clone(), user_agent.to_string())?,
@@ -18,6 +20,7 @@ impl Client {
         })
     }
 
+    /// Logs in and identifies with the gateway.
     pub async fn login(&mut self, name: &str, password: &str) -> Result<(String, User), Error> {
         self.http.login(name, password).await?;
         let token = self.http.token()
