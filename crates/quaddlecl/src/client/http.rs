@@ -164,9 +164,19 @@ impl Http {
             query: &()
         }).await?;
 
-        self.token = Some(r.token);
+        self.set_token(r.token);
 
         Ok(())
+    }
+
+    /// Logs out.
+    pub fn logout(&mut self) {
+        self.token = None;
+    }
+
+    /// Sets the token.
+    pub fn set_token(&mut self, tok: String) {
+        self.token = Some(tok);
     }
 
     /// Creates a message.
