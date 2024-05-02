@@ -277,6 +277,8 @@ pub mod tests {
         http.login(&uname, "the_meower")
             .await
             .expect("login failed");
+
+        assert_ne!(http.token(), None);
     }
 
     #[tokio::test]
