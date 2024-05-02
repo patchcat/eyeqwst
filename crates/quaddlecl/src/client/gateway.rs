@@ -32,8 +32,8 @@ pub enum Error {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "op", rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum ClientGatewayMessage<'a> {
-    Identify { token: &'a str },
+pub enum ClientGatewayMessage {
+    Identify { token: String },
     Subscribe { channel_id: ChannelId },
 }
 
@@ -75,7 +75,7 @@ impl Gateway {
     }
 
     /// Sends an identify message and returns the session ID.
-    pub async fn identify(&mut self, token: &str) -> Result<(String, User), Error> {
+    pub async fn identify(&mut self, token: String) -> Result<(String, User), Error> {
         self.send(ClientGatewayMessage::Identify { token })
             .await?;
 
@@ -96,7 +96,7 @@ impl Gateway {
 
 /// A lower-level way of sending gateway messages.
 /// Prefer using the dedicated associated functions.
-impl<'a> Sink<ClientGatewayMessage<'a>> for Gateway {
+impl Sink<ClientGatewayMessage> for Gateway {
     type Error = Error;
 
     fn poll_ready(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
@@ -180,7 +180,7 @@ mod tests {
             .expect("failed to log in");
 
         let (_, user) = gateway
-            .identify(http.token().expect("not logged in"))
+            .identify(http.token().expect("not logged in").to_string())
             .await
             .expect("failed to identify");
 
@@ -193,7 +193,7 @@ mod tests {
         let http = make_signed_in().await;
         let mut gateway = make_gateway().await;
 
-        gateway.identify(http.token().expect("not logged in"))
+        gateway.identify(http.token().expect("not logged in").to_string())
                .await
                .expect("failed to identify");
 

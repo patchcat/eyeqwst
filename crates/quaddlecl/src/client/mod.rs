@@ -26,7 +26,7 @@ impl Client {
         let token = self.http.token()
             .expect("logged in but no token set.");
 
-        Ok(self.gateway.identify(token).await?)
+        Ok(self.gateway.identify(token.to_string()).await?)
     }
 
     pub fn http(&self) -> &Http { &self.http }
