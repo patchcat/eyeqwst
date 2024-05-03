@@ -77,6 +77,7 @@ where PathSegment: AsRef<str>,
     }
 }
 
+#[derive(Debug)]
 pub struct Http {
     client: reqwest::Client,
     quaddle_url: Url,
