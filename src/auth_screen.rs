@@ -47,7 +47,7 @@ pub enum UiMessage {
 pub enum IoMessage {
     SignupSucceeded,
     SignupFailed(Box<dyn Error + Send + Sync>),
-    LoginSucceeded(Http),
+    LoginSucceeded(Http, Url),
     LoginFailed(Box<dyn Error + Send + Sync>)
 }
 
@@ -102,18 +102,18 @@ impl AuthScreen {
             Io(IoMessage::SignupFailed(err)) => self.state = AuthScreenState::Signup(ActionState::Error(err)),
             Ui(UiMessage::LoginInitiated) => {
                 self.state = AuthScreenState::Login(ActionState::InProgress);
-                let server: String = self.server.to_string();
+                let server: Url = Url::parse(&self.server).unwrap();
                 let username: String = self.username.to_string();
                 let password: String = self.password.to_string();
                 return Command::perform(
                     async move {
-                        let mut http = Http::new(Url::parse(&server).unwrap(), USER_AGENT.to_string())?;
+                        let mut http = Http::new(server.clone(), USER_AGENT.to_string())?;
                         http.login(&username, &password)
                             .await?;
-                        Ok(http)
+                        Ok((http, server))
                     },
                     |res: Result<_, http::Error>| match res {
-                        Ok(http) => Io(IoMessage::LoginSucceeded(http)),
+                        Ok((http, server)) => Io(IoMessage::LoginSucceeded(http, server)),
                         Err(e) => Io(IoMessage::LoginFailed(Box::new(e))),
                     }
                 )

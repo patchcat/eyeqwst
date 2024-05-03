@@ -3,6 +3,8 @@ use gateway::GatewayMessage;
 use iced::{executor, keyboard::{key, on_key_press, Key}, widget, Application, Command, Element, Event, Renderer, Subscription, Theme};
 use quaddlecl::client::{gateway::{ClientGatewayMessage, Gateway}, http::Http, Client};
 use url::Url;
+use auth_screen::Message as AuthMessage;
+use auth_screen::IoMessage as AuthIoMessage;
 
 pub mod auth_screen;
 pub mod gateway;
@@ -19,7 +21,7 @@ pub enum Eyeqwst {
 
 #[derive(Debug)]
 pub enum Message {
-    AuthScreen(auth_screen::Message),
+    AuthScreen(AuthMessage),
     TabPressed,
     GatewayEvent(GatewayMessage),
 }
@@ -46,6 +48,9 @@ impl Application for Eyeqwst {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match (self, message) {
+            (s@Self::Authenticating(_), Message::AuthScreen(AuthMessage::Io(AuthIoMessage::LoginSucceeded(http, server)))) => {
+                *s = Self::LoggedIn { http, server }
+            },
             (Self::Authenticating(scr), Message::AuthScreen(msg)) =>
                 return scr.update(msg).map(Message::AuthScreen),
             (_, Message::TabPressed) =>
