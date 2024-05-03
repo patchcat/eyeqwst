@@ -1,4 +1,5 @@
 use auth_screen::AuthScreen;
+use config::Config;
 use gateway::GatewayMessage;
 use iced::{executor, keyboard::{key, on_key_press, Key}, widget, Application, Command, Element, Event, Renderer, Subscription, Theme};
 use quaddlecl::client::{gateway::{ClientGatewayMessage, Gateway}, http::Http, Client};
@@ -8,15 +9,21 @@ use auth_screen::IoMessage as AuthIoMessage;
 
 pub mod auth_screen;
 pub mod gateway;
+pub mod config;
 
 const USER_AGENT: &'static str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
 
-pub enum Eyeqwst {
+pub enum EyeqwstState {
     Authenticating(AuthScreen),
     LoggedIn {
         server: Url,
         http: Http,
     }
+}
+
+pub struct Eyeqwst {
+    state: EyeqwstState,
+    config: Config,
 }
 
 #[derive(Debug)]
@@ -37,7 +44,10 @@ impl Application for Eyeqwst {
 
     fn new((): Self::Flags) -> (Self, Command<Self::Message>) {
         (
-            Eyeqwst::Authenticating(AuthScreen::default()),
+            Self {
+                state: EyeqwstState::Authenticating(AuthScreen::default()),
+                config: Config::load(),
+            },
             Command::none()
         )
     }
@@ -47,11 +57,12 @@ impl Application for Eyeqwst {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        match (self, message) {
-            (s@Self::Authenticating(_), Message::AuthScreen(AuthMessage::Io(AuthIoMessage::LoginSucceeded(http, server)))) => {
-                *s = Self::LoggedIn { http, server }
+        match (&mut self.state, message) {
+            (s@EyeqwstState::Authenticating(_),
+             Message::AuthScreen(AuthMessage::Io(AuthIoMessage::LoginSucceeded(http, server)))) => {
+                *s = EyeqwstState::LoggedIn { http, server };
             },
-            (Self::Authenticating(scr), Message::AuthScreen(msg)) =>
+            (EyeqwstState::Authenticating(scr), Message::AuthScreen(msg)) =>
                 return scr.update(msg).map(Message::AuthScreen),
             (_, Message::TabPressed) =>
                 return widget::focus_next(),
@@ -62,8 +73,8 @@ impl Application for Eyeqwst {
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
-        match self {
-            Self::Authenticating(scr) => {
+        match &self.state {
+            EyeqwstState::Authenticating(scr) => {
                 scr.view(&self.theme())
                     .map(Message::AuthScreen)
             },
@@ -73,7 +84,7 @@ impl Application for Eyeqwst {
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         Subscription::batch([
-            if let Self::LoggedIn { server, http, .. } = self {
+            if let EyeqwstState::LoggedIn { server, http, .. } = &self.state {
                 gateway::connect(server.clone(), http.token().unwrap().to_string())
                     .map(Message::GatewayEvent)
             } else {

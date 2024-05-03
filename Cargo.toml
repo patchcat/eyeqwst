@@ -9,3 +9,7 @@ futures = "0.3.30"
 iced = { version = "0.12.1", features = ["lazy", "tokio"] }
 quaddlecl = { path = "crates/quaddlecl" }
 url = "2.5.0"
+serde = { version = "1.0.198", features = ["derive"] }
+toml = "0.8.12"
+directories = "5.0.1"
+log = "0.4.21"
