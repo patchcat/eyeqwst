@@ -1,6 +1,6 @@
-use auth_screen::{login_screen, signup_screen};
+use auth_screen::AuthScreen;
 use gateway::GatewayMessage;
-use iced::{executor, Application, Command, Element, Event, Renderer, Subscription, Theme};
+use iced::{executor, keyboard::{key, on_key_press, Key}, widget, Application, Command, Element, Event, Renderer, Subscription, Theme};
 use quaddlecl::client::{gateway::{ClientGatewayMessage, Gateway}, http::Http, Client};
 use url::Url;
 
@@ -10,8 +10,7 @@ pub mod gateway;
 const USER_AGENT: &'static str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
 
 pub enum Eyeqwst {
-    Signup { server: String, username: String, password: String },
-    Login { server: String, username: String, password: String },
+    Authenticating(AuthScreen),
     LoggedIn {
         server: Url,
         http: Http,
@@ -21,6 +20,7 @@ pub enum Eyeqwst {
 #[derive(Debug)]
 pub enum Message {
     AuthScreen(auth_screen::Message),
+    TabPressed,
     GatewayEvent(GatewayMessage),
 }
 
@@ -35,11 +35,7 @@ impl Application for Eyeqwst {
 
     fn new((): Self::Flags) -> (Self, Command<Self::Message>) {
         (
-            Eyeqwst::Login {
-                server: String::new(),
-                username: String::new(),
-                password: String::new()
-            },
+            Eyeqwst::Authenticating(AuthScreen::default()),
             Command::none()
         )
     }
@@ -49,17 +45,11 @@ impl Application for Eyeqwst {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        use auth_screen::Message::{ServerUpdated, UsernameUpdated, PasswordUpdated};
         match (self, message) {
-            (Self::Signup { server, .. } | Self::Login { server, .. },
-             Message::AuthScreen(ServerUpdated(newserver))) =>
-                *server = newserver,
-            (Self::Signup { username, .. } | Self::Login { username, .. },
-             Message::AuthScreen(UsernameUpdated(newuname))) =>
-                *username = newuname,
-            (Self::Signup { password, .. } | Self::Login { password, .. },
-             Message::AuthScreen(PasswordUpdated(newpwd))) =>
-                *password = newpwd,
+            (Self::Authenticating(scr), Message::AuthScreen(msg)) =>
+                return scr.update(msg).map(Message::AuthScreen),
+            (_, Message::TabPressed) =>
+                return widget::focus_next(),
             _ => {},
         }
 
@@ -68,22 +58,26 @@ impl Application for Eyeqwst {
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
         match self {
-            Self::Signup { server, username, password } =>
-                signup_screen(&server, &username, &password)
-                    .map(Message::AuthScreen),
-            Self::Login { server, username, password } =>
-                login_screen(&server, &username, &password)
-                    .map(Message::AuthScreen),
+            Self::Authenticating(scr) => {
+                scr.view(&self.theme())
+                    .map(Message::AuthScreen)
+            },
             _ => todo!()
         }
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        if let Self::LoggedIn { server, http, .. } = self {
-            gateway::connect(server.clone(), http.token().unwrap().to_string())
-                .map(Message::GatewayEvent)
-        } else {
-            Subscription::none()
-        }
+        Subscription::batch([
+            if let Self::LoggedIn { server, http, .. } = self {
+                gateway::connect(server.clone(), http.token().unwrap().to_string())
+                    .map(Message::GatewayEvent)
+            } else {
+                Subscription::none()
+            },
+            on_key_press(|key, _| match key {
+                Key::Named(key::Named::Tab) => Some(Message::TabPressed),
+                _ => None,
+            })
+        ])
     }
 }

@@ -1,61 +1,203 @@
-use iced::widget::{button, column, container, text, text_input};
-use iced::{Element, Length};
+use std::error::Error;
+use std::fmt::Debug;
+use std::sync::Arc;
+
+use iced::theme::{Button, Text};
+use iced::widget::{button, column, container, text, text_input, Column};
+use iced::{Color, Command, Element, Length, Theme};
+use quaddlecl::client::http::{self, Http};
+use url::Url;
+
+use crate::USER_AGENT;
+
+#[derive(Debug)]
+enum ActionState {
+    Idle,
+    InProgress,
+    Error(Box<dyn Error + Send + Sync>),
+    Success,
+}
+
+#[derive(Debug)]
+enum AuthScreenState {
+    Login(ActionState),
+    Signup(ActionState),
+}
+
+pub struct AuthScreen {
+    state: AuthScreenState,
+    server: String,
+    username: String,
+    password: String,
+}
 
 #[derive(Debug, Clone)]
-pub enum Message {
+pub enum UiMessage {
     ServerUpdated(String),
     UsernameUpdated(String),
     PasswordUpdated(String),
     SignupInitiated,
-    LoginInitiated
+    LoginInitiated,
+    SignupSucceeded,
+    SwitchToLogin,
+    SwitchToSignup,
 }
 
-pub fn signup_screen<'a>(server: &'a str, username: &'a str, password: &'a str)
-                     -> Element<'a, Message> {
-    container(column![
-        text_input("Server", server)
-            .on_input(Message::ServerUpdated)
-            .on_submit(Message::SignupInitiated),
-
-        text_input("Username", username)
-            .on_input(Message::UsernameUpdated)
-            .on_submit(Message::SignupInitiated),
-
-        text_input("Password", password)
-            .on_input(Message::PasswordUpdated)
-            .on_submit(Message::SignupInitiated),
-
-        button("Sign up"),
-    ])
-        .center_x()
-        .center_y()
-        .into()
+#[derive(Debug)]
+pub enum IoMessage {
+    SignupSucceeded,
+    SignupFailed(Box<dyn Error + Send + Sync>),
+    LoginSucceeded(Http),
+    LoginFailed(Box<dyn Error + Send + Sync>)
 }
-pub fn login_screen<'a>(server: &'a str, username: &'a str, password: &'a str)
-                        -> Element<'a, Message> {
-    container(
-        column![
-            text_input("Server", server)
-                .on_input(Message::ServerUpdated)
-                .on_submit(Message::SignupInitiated),
 
-            text_input("Username", username)
-                .on_input(Message::UsernameUpdated)
-                .on_submit(Message::SignupInitiated),
+#[derive(Debug)]
+pub enum Message {
+    Ui(UiMessage),
+    Io(IoMessage),
+}
 
-            text_input("Password", password)
-                .on_input(Message::PasswordUpdated)
-                .on_submit(Message::SignupInitiated),
+pub fn validate_credentials(server: &str, username: &str, password: &str) -> bool {
+    (1..1024).contains(&username.len())
+        && (1..1024).contains(&password.len())
+        && Url::parse(server).is_ok()
+}
 
-            button(container("Log in").center_x().width(Length::Fill))
-                .width(Length::Fill),
-        ]
-            .spacing(20)
-            .width(200)
-    )
-        .center_x()
-        .center_y()
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+impl Default for AuthScreen {
+    fn default() -> Self {
+        Self {
+            state: AuthScreenState::Login(ActionState::Idle),
+            server: String::new(),
+            username: String::new(),
+            password: String::new(),
+        }
+    }
+}
+
+impl AuthScreen {
+    pub fn update(&mut self, msg: Message) -> Command<Message> {
+        use Message::{Ui, Io};
+        match msg {
+            Ui(UiMessage::ServerUpdated(srv)) => self.server = srv,
+            Ui(UiMessage::UsernameUpdated(uname)) => self.username = uname,
+            Ui(UiMessage::PasswordUpdated(pwd)) => self.password = pwd,
+            Ui(UiMessage::SignupInitiated) => {
+                self.state = AuthScreenState::Signup(ActionState::InProgress);
+                let server: String = self.server.to_string();
+                let username: String = self.username.to_string();
+                let password: String = self.password.to_string();
+                return Command::perform(
+                    async move {
+                        Http::new(Url::parse(&server).unwrap(), USER_AGENT.to_string())?
+                            .signup(&username, &password)
+                            .await
+                    },
+                    |res: Result<_, http::Error>| match res {
+                        Ok(_) => Io(IoMessage::SignupSucceeded),
+                        Err(e) => Io(IoMessage::SignupFailed(Box::new(e)))
+                    }
+                )
+            },
+            Io(IoMessage::SignupSucceeded) => self.state = AuthScreenState::Signup(ActionState::Success),
+            Io(IoMessage::SignupFailed(err)) => self.state = AuthScreenState::Signup(ActionState::Error(err)),
+            Ui(UiMessage::LoginInitiated) => {
+                self.state = AuthScreenState::Login(ActionState::InProgress);
+                let server: String = self.server.to_string();
+                let username: String = self.username.to_string();
+                let password: String = self.password.to_string();
+                return Command::perform(
+                    async move {
+                        let mut http = Http::new(Url::parse(&server).unwrap(), USER_AGENT.to_string())?;
+                        http.login(&username, &password)
+                            .await?;
+                        Ok(http)
+                    },
+                    |res: Result<_, http::Error>| match res {
+                        Ok(http) => Io(IoMessage::LoginSucceeded(http)),
+                        Err(e) => Io(IoMessage::LoginFailed(Box::new(e))),
+                    }
+                )
+            },
+            Io(IoMessage::LoginFailed(err)) => self.state = AuthScreenState::Login(ActionState::Error(err)),
+            Ui(UiMessage::SwitchToLogin) => self.state = AuthScreenState::Login(ActionState::Idle),
+            Ui(UiMessage::SwitchToSignup) => self.state = AuthScreenState::Signup(ActionState::Idle),
+            _ => {},
+        }
+
+        Command::none()
+    }
+
+    pub fn view<'a>(&self, theme: &Theme) -> Element<'a, Message> {
+        let AuthScreen { server, username, password, state, .. } = self;
+        let el: Element<'a, UiMessage> = container(
+            Column::new()
+                .push_maybe({
+                    match state {
+                        AuthScreenState::Login(ActionState::Error(err))
+                            | AuthScreenState::Signup(ActionState::Error(err)) =>
+                            Some(text(err).style(theme.palette().danger)),
+                        AuthScreenState::Signup(ActionState::Success) =>
+                            Some(text("Account successfully created").style(theme.palette().success)),
+                        _ => None,
+                    }
+                })
+                .push(text_input("Server", server)
+                      .on_input(UiMessage::ServerUpdated)
+                      .on_submit(UiMessage::SignupInitiated))
+                .push(text_input("Username", username)
+                      .on_input(UiMessage::UsernameUpdated)
+                      .on_submit(UiMessage::SignupInitiated))
+                .push(text_input("Password", password)
+                      .secure(true)
+                      .on_input(UiMessage::PasswordUpdated)
+                      .on_submit(UiMessage::SignupInitiated))
+                .push(match state {
+                    AuthScreenState::Login(s) => {
+                        button(container("Log in").center_x().width(Length::Fill))
+                            .width(Length::Fill)
+                            .on_press_maybe({
+                                Some(UiMessage::LoginInitiated)
+                                    .filter(|_| !matches!(s, ActionState::InProgress))
+                                    .filter(|_| validate_credentials(server, username, password))
+                            })
+
+                    },
+                    AuthScreenState::Signup(s) => {
+                        button(container("Sign up").center_x().width(Length::Fill))
+                            .width(Length::Fill)
+                            .on_press_maybe({
+                                Some(UiMessage::SignupInitiated)
+                                    .filter(|_| !matches!(s, ActionState::InProgress))
+                                    .filter(|_| validate_credentials(server, username, password))
+                            })
+                    }
+                })
+                .push(match state {
+                    AuthScreenState::Login(s) => {
+                        button(container("Sign up").center_x().width(Length::Fill))
+                            .on_press_maybe({
+                                Some(UiMessage::SwitchToSignup)
+                                    .filter(|_| !matches!(s, ActionState::InProgress))
+                            })
+                            .style(Button::Secondary)
+                    },
+                    AuthScreenState::Signup(s) => {
+                        button(container("Back").center_x().width(Length::Fill))
+                            .on_press_maybe({
+                                Some(UiMessage::SwitchToLogin)
+                                    .filter(|_| !matches!(s, ActionState::InProgress))
+                            })
+                            .style(Button::Secondary)
+                    },
+                })
+                .spacing(10)
+                .width(200)
+        )
+            .center_x()
+            .center_y()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+        el.map(Message::Ui)
+    }
 }
