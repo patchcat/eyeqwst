@@ -75,7 +75,7 @@ impl Gateway {
             .into_websocket()
             .await?;
 
-        Ok(Self { ws, closed: true })
+        Ok(Self { ws, closed: false })
     }
 
     /// Sends an identify message and returns the session ID.
