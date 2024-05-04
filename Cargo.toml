@@ -7,11 +7,13 @@ edition = "2021"
 [dependencies]
 futures = "0.3.30"
 iced = { version = "0.12.1", features = ["lazy", "tokio"] }
+iced_aw = "0.8.0"
 quaddlecl = { path = "crates/quaddlecl" }
-url = "2.5.0"
+url = { version = "2.5.0", features = ["serde"] }
 serde = { version = "1.0.198", features = ["derive"] }
 toml = "0.8.12"
 directories = "5.0.1"
 log = "0.4.21"
 env_logger = "0.11.3"
 tokio = "1.37.0"
+serde_with = "3.8.1"
