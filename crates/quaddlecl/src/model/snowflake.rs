@@ -65,6 +65,14 @@ macro_rules! extra_sf_impls {
                        id = self.0)
             }
         }
+
+        impl ::std::str::FromStr for $ty {
+            type Err = <u64 as ::std::str::FromStr>::Err;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(u64::from_str(s)?))
+            }
+        }
     }
 }
 
