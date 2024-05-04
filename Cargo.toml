@@ -13,3 +13,4 @@ serde = { version = "1.0.198", features = ["derive"] }
 toml = "0.8.12"
 directories = "5.0.1"
 log = "0.4.21"
+tokio = "1.37.0"

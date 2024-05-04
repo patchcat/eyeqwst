@@ -1,11 +1,11 @@
-use std::{any::TypeId, convert::Infallible, error::Error};
+use std::{any::TypeId, convert::Infallible, error::Error, time::Duration};
 
 use futures::{channel::mpsc, select, SinkExt, StreamExt};
 use iced::{subscription, Subscription};
 use quaddlecl::{client::gateway::{self, ClientGatewayMessage, Gateway, GatewayEvent}, model::user::User};
 use url::Url;
 
-use crate::USER_AGENT;
+use crate::{sleep, USER_AGENT};
 
 #[derive(Debug, Clone)]
 pub struct Connection(mpsc::UnboundedSender<ClientGatewayMessage>);
@@ -49,6 +49,7 @@ async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, tok
                     Ok(x) => x,
                     Err(e) => {
                         let _ = output.send(GatewayMessage::ConnectionError(e)).await;
+                        sleep(Duration::from_secs(5)).await;
                         continue
                     },
                 };
@@ -57,6 +58,7 @@ async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, tok
                     Ok(x) => x,
                     Err(e) => {
                         let _ = output.send(GatewayMessage::ConnectionError(e)).await;
+                        sleep(Duration::from_secs(5)).await;
                         continue
                     }
                 };
