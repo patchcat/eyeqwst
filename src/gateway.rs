@@ -5,7 +5,7 @@ use iced::{subscription, Subscription};
 use quaddlecl::{client::gateway::{self, ClientGatewayMessage, Gateway, GatewayEvent}, model::user::User};
 use url::Url;
 
-use crate::{sleep, USER_AGENT};
+use crate::{utils::sleep, USER_AGENT};
 
 #[derive(Debug, Clone)]
 pub struct Connection(mpsc::UnboundedSender<ClientGatewayMessage>);

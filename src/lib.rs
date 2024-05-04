@@ -1,27 +1,31 @@
-use std::time::Duration;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use auth_screen::AuthScreen;
-use config::Config;
+use config::{Channel, Config};
 use gateway::{Connection, GatewayMessage};
-use iced::{executor, keyboard::{key, on_key_press, Key}, theme, widget::{self, container, row}, Application, Color, Command, Element, Event, Length, Renderer, Subscription, Theme};
-use quaddlecl::{client::{gateway::{ClientGatewayMessage, Gateway, GatewayEvent}, http::Http, Client}, model::user::User};
+use iced::{executor, keyboard::{key, on_key_press, Key}, theme, widget::{self, container, row, scrollable, Column, Rule}, Application, Color, Command, Element, Event, Font, Length, Pixels, Renderer, Subscription, Theme};
+use messageview::retrieve_history;
+use quaddlecl::{client::{gateway::{ClientGatewayMessage, Gateway, GatewayEvent}, http::{self, Http}, Client}, model::{channel::ChannelId, user::User}};
+use quaddlecl::model::message::Message as QMessage;
 use url::Url;
+use std::iter;
+use std::error::Error;
 use auth_screen::Message as AuthMessage;
 use auth_screen::IoMessage as AuthIoMessage;
 
-use crate::channel_select::ChannelList;
+use crate::{channel_select::ChannelList, messageview::{qmessage_list, QMessageWidget}, utils::Gaps};
 
 pub mod auth_screen;
 pub mod gateway;
 pub mod config;
 pub mod channel_select;
 pub mod toggle_button;
+pub mod messageview;
+pub mod utils;
 
 const USER_AGENT: &'static str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
+pub const DEFAULT_FONT: Font = Font::with_name("Roboto");
 
-async fn sleep(d: Duration) {
-    tokio::time::sleep(d).await;
-}
 
 #[derive(Debug)]
 pub enum GatewayState {
@@ -36,15 +40,25 @@ impl GatewayState {
             GatewayState::Disconnected => None,
         }
     }
+
+    pub fn channel_at<'a>(&self, config: &'a Config, server: &Url, idx: usize) -> Option<&'a Channel> {
+        config
+            .get_account_config(server, self.user()?.id)?
+            .channels
+            .get(idx)
+
+    }
 }
 
 pub enum EyeqwstState {
     Authenticating(AuthScreen),
     LoggedIn {
         server: Url,
-        http: Http,
+        http: Arc<Http>,
         selected_channel: usize,
         gateway_state: GatewayState,
+        /// messages in the current channel
+        messages: Vec<QMessage>,
     }
 }
 
@@ -57,6 +71,8 @@ pub struct Eyeqwst {
 pub enum Message {
     AuthScreen(AuthMessage),
     TabPressed,
+    HistoryRetrieved(Vec<QMessage>),
+    HistoryRetrievalError(http::Error),
     GatewayEvent(GatewayMessage),
     ChannelSelected(usize),
 }
@@ -88,16 +104,66 @@ impl Application for Eyeqwst {
         match (&mut self.state, message) {
             (s@EyeqwstState::Authenticating(_),
              Message::AuthScreen(AuthMessage::Io(AuthIoMessage::LoginSucceeded(http, server)))) => {
-                *s = EyeqwstState::LoggedIn { http, server, selected_channel: 0, gateway_state: GatewayState::Disconnected };
+                *s = EyeqwstState::LoggedIn {
+                    http: Arc::new(http),
+                    server,
+                    selected_channel: 0,
+                    gateway_state: GatewayState::Disconnected,
+                    messages: Vec::default(),
+                };
             },
-            (EyeqwstState::LoggedIn { gateway_state, .. },
-             Message::GatewayEvent(GatewayMessage::Connected { user, conn, .. })) => {
+            (EyeqwstState::Authenticating(scr), Message::AuthScreen(msg)) =>
+                return scr.update(msg).map(Message::AuthScreen),
+            (EyeqwstState::LoggedIn { http, gateway_state, server, selected_channel, .. },
+             Message::GatewayEvent(GatewayMessage::Connected { user, mut conn, .. })) => {
+                let channels = self.config.get_account_config(&server, user.id)
+                    .map(|c| c.channels.iter())
+                    .into_iter()
+                    .flatten();
+                for channel in channels {
+                    conn.send(ClientGatewayMessage::Subscribe {
+                        channel_id: channel.id
+                    });
+                }
                 *gateway_state = GatewayState::Connected { user, conn };
+                if let Some(channel) = gateway_state.channel_at(&self.config, &server, *selected_channel) {
+                    return retrieve_history(
+                        Arc::clone(http),
+                        channel.id, None, Message::HistoryRetrieved, Message::HistoryRetrievalError
+                    )
+                }
             },
             (_, Message::GatewayEvent(GatewayMessage::ConnectionError(e))) =>
                 log::warn!("gateway connection error: {e}"),
-            (EyeqwstState::Authenticating(scr), Message::AuthScreen(msg)) =>
-                return scr.update(msg).map(Message::AuthScreen),
+            (EyeqwstState::LoggedIn { messages, selected_channel, gateway_state, server, .. },
+             Message::GatewayEvent(GatewayMessage::Event(GatewayEvent::MessageCreate { message }))) => {
+                let is_relevant = gateway_state.channel_at(&self.config, &server, *selected_channel)
+                    .is_some_and(|c| c.id == message.channel);
+                if is_relevant {
+                    messages.push(message);
+                }
+            },
+            (EyeqwstState::LoggedIn { http, server, selected_channel, messages, gateway_state, .. },
+             Message::ChannelSelected(new_selected)) => {
+                let Some(channel) = gateway_state.channel_at(&self.config, &server, *selected_channel)
+                else {
+                    return Command::none();
+                };
+                *selected_channel = new_selected;
+                *messages = Vec::new();
+                return retrieve_history(
+                    Arc::clone(http),
+                    channel.id,
+                    None,
+                    Message::HistoryRetrieved,
+                    Message::HistoryRetrievalError
+                );
+            },
+            (EyeqwstState::LoggedIn { messages, .. },
+             Message::HistoryRetrieved(mut new_msgs)) => {
+                new_msgs.reverse();
+                *messages = new_msgs
+            },
             (_, Message::TabPressed) =>
                 return widget::focus_next(),
             _ => {},
@@ -112,14 +178,15 @@ impl Application for Eyeqwst {
                 scr.view(&self.theme())
                     .map(Message::AuthScreen)
             },
-            EyeqwstState::LoggedIn { selected_channel, gateway_state, server, .. }  => {
+            EyeqwstState::LoggedIn { selected_channel, gateway_state, server, messages, .. }  => {
                 log::debug!("gateway state: {gateway_state:?}");
+                let account_config = gateway_state
+                    .user()
+                    .and_then(|user| self.config.get_account_config(server, user.id));
                 row![
                     container({
                         ChannelList::new(
-                            gateway_state
-                                .user()
-                                .and_then(|user| self.config.get_account_config(server, user.id))
+                            account_config
                                 .map(|account| account.channels.iter())
                                 .into_iter()
                                 .flatten(),
@@ -144,7 +211,8 @@ impl Application for Eyeqwst {
                                     }
                                 }
                             }))
-                        })
+                        }),
+                    qmessage_list(messages)
                 ]
                     .width(Length::Fill)
                     .height(Length::Fill)
