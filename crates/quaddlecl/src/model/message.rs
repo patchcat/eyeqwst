@@ -5,7 +5,7 @@ use super::snowflake::{extra_sf_impls, newtype_sf_impl};
 use super::user::User;
 
 /// Not exposed to clients yet.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct MessageId(pub u64);
 
