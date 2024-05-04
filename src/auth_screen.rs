@@ -129,6 +129,10 @@ impl AuthScreen {
 
     pub fn view<'a>(&self, theme: &Theme) -> Element<'a, Message> {
         let AuthScreen { server, username, password, state, .. } = self;
+        let submit_msg = match state {
+            AuthScreenState::Login(_) => UiMessage::LoginInitiated,
+            AuthScreenState::Signup(_) => UiMessage::SignupInitiated,
+        };
         let el: Element<'a, UiMessage> = container(
             Column::new()
                 .push_maybe({
@@ -143,14 +147,14 @@ impl AuthScreen {
                 })
                 .push(text_input("Server", server)
                       .on_input(UiMessage::ServerUpdated)
-                      .on_submit(UiMessage::SignupInitiated))
+                      .on_submit(submit_msg.clone()))
                 .push(text_input("Username", username)
                       .on_input(UiMessage::UsernameUpdated)
-                      .on_submit(UiMessage::SignupInitiated))
+                      .on_submit(submit_msg.clone()))
                 .push(text_input("Password", password)
                       .secure(true)
                       .on_input(UiMessage::PasswordUpdated)
-                      .on_submit(UiMessage::SignupInitiated))
+                      .on_submit(submit_msg.clone()))
                 .push(match state {
                     AuthScreenState::Login(s) => {
                         button(container("Log in").center_x().width(Length::Fill))
