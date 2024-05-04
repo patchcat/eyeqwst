@@ -1,31 +1,50 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use directories::BaseDirs;
-use quaddlecl::model::channel::ChannelId;
+use quaddlecl::model::{channel::ChannelId, user::UserId};
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::DisplayFromStr;
+use url::Url;
 
 const CONFIG_PATH: &str = "eyeqwst/config.toml";
 
-#[derive(Serialize, Deserialize, Default)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Config {
-    pub accounts: HashMap<String, HashMap<String, Account>>,
+    #[serde_as(as = "HashMap<_, HashMap<DisplayFromStr, _>>")]
+    pub accounts: HashMap<Url, HashMap<UserId, Account>>,
 }
 
 impl Config {
     pub fn load() -> Config {
         let Some(dirs) = BaseDirs::new() else {
+            log::warn!("could not get basedirs");
             return Default::default()
         };
         let path = dirs.config_dir().join(CONFIG_PATH);
         let Ok(contents) = fs::read_to_string(&path) else {
+            log::warn!("could not read file");
             return Default::default()
         };
 
-        let Ok(config) = toml::from_str(&contents) else {
-            return Default::default();
+        let config = match toml::from_str(&contents) {
+            Ok(x) => x,
+            Err(e) => {
+                log::warn!("error deserializing config: {e}");
+                return Default::default()
+            }
         };
 
+        log::debug!("config: {config:?}");
+
         config
+    }
+
+    pub fn get_account_config(&self, quaddle_url: &Url, user: UserId) -> Option<&Account> {
+        Some(self.accounts
+            .get(quaddle_url)?
+            .get(&user)?)
     }
 }
 
@@ -62,15 +81,13 @@ impl Drop for Config {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Account {
     pub channels: Vec<Channel>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Channel {
     pub id: ChannelId,
     pub name: String,
 }
-
-
