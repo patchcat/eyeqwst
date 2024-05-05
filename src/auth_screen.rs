@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::fmt::Debug;
-use std::sync::Arc;
 
-use iced::theme::{Button, Text};
-use iced::widget::{button, column, container, text, text_input, Column};
-use iced::{Color, Command, Element, Length, Theme};
+
+use iced::theme::{Button};
+use iced::widget::{button, container, text, text_input, Column};
+use iced::{Command, Element, Length, Theme};
 use quaddlecl::client::http::{self, Http};
 use url::Url;
 

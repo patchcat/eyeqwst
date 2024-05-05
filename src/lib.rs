@@ -1,9 +1,9 @@
-use std::{collections::HashMap, convert::identity, sync::Arc, time::Duration};
+use std::{sync::Arc};
 
 use auth_screen::AuthScreen;
 use auth_screen::IoMessage as AuthIoMessage;
 use auth_screen::Message as AuthMessage;
-use config::{Channel, Config};
+use config::{Config};
 use editor::send_message;
 use gateway::{Connection, GatewayMessage};
 use iced::widget::text_editor;
@@ -14,30 +14,27 @@ use iced::{
     widget::{
         self, column, container, row,
         scrollable::{self, snap_to, RelativeOffset},
-        Column, Rule,
     },
-    Application, Color, Command, Element, Event, Font, Length, Pixels, Renderer, Subscription,
+    Application, Color, Command, Element, Font, Length, Renderer, Subscription,
     Theme,
 };
 use messageview::{retrieve_history, QMESSAGELIST_ID};
 use quaddlecl::model::message::Message as QMessage;
 use quaddlecl::{
     client::{
-        gateway::{ClientGatewayMessage, Gateway, GatewayEvent},
+        gateway::{ClientGatewayMessage, GatewayEvent},
         http::{self, Http},
-        Client,
     },
-    model::{channel::ChannelId, user::User},
+    model::{user::User},
 };
-use std::error::Error;
-use std::iter;
+
+
 use url::Url;
 
 use crate::{
     channel_select::ChannelList,
     editor::MessageEditor,
-    messageview::{qmessage_list, QMessageWidget},
-    utils::Gaps,
+    messageview::{qmessage_list},
 };
 
 pub mod auth_screen;
@@ -288,7 +285,7 @@ impl Application for Eyeqwst {
                 let account_config = gateway_state
                     .user()
                     .and_then(|user| self.config.get_account_config(server, user.id));
-                let channel =
+                let _channel =
                     account_config.and_then(|account| account.channels.get(*selected_channel));
                 row![
                     container({

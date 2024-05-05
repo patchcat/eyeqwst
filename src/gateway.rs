@@ -1,4 +1,4 @@
-use std::{any::TypeId, convert::Infallible, error::Error, time::Duration};
+use std::{any::TypeId, convert::Infallible, time::Duration};
 
 use futures::{channel::mpsc, select, SinkExt, StreamExt};
 use iced::{subscription, Subscription};

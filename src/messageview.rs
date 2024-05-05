@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use crate::utils::Gaps;
 use chrono::{Local, TimeDelta};
-use iced::advanced::graphics::futures::{MaybeSend, MaybeSync};
-use iced::advanced::widget::Id;
+
+
 use iced::font::Weight;
 use iced::widget::scrollable::Properties;
 use iced::widget::{column, container, row, scrollable};
-use iced::widget::{text, text_editor, Column, Container, Space};
+use iced::widget::{text, Column, Space};
 use iced::{Color, Command, Element, Font, Length};
 use quaddlecl::model::message::MessageId as QMessageId;
 use quaddlecl::{

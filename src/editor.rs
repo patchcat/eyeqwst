@@ -1,4 +1,4 @@
-use std::slice;
+
 use std::sync::Arc;
 
 use iced::advanced::text::highlighter::PlainText;
@@ -6,12 +6,12 @@ use iced::advanced::widget::{tree, Tree};
 use iced::advanced::{text, Widget};
 use iced::event::Status;
 use iced::keyboard::key::Named;
-use iced::keyboard::{Key, Modifiers};
+use iced::keyboard::{Key};
 use iced::mouse::Button;
-use iced::widget::text_editor;
+
 use iced::widget::text_editor::{Action, Content, Motion};
 use iced::widget::TextEditor;
-use iced::{keyboard, widget, Command, Element, Event, Length, Padding, Pixels, Renderer};
+use iced::{keyboard, widget, Command, Element, Event, Length, Padding, Renderer};
 use quaddlecl::client::http::{self, Http};
 use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;

@@ -1,5 +1,5 @@
 use eyeqwst::Eyeqwst;
-use iced::{Application, Font, Settings};
+use iced::{Application, Settings};
 
 fn main() -> Result<(), iced::Error> {
     env_logger::init();

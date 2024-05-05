@@ -57,7 +57,7 @@ where
             Column::with_children({
                 clist.channels.into_iter().enumerate().map(|(i, channel)| {
                     button(text(format!("#{name}", name = channel.name)))
-                        .on_press_maybe({ Some(i).filter(|_| clist.on_selection.is_some()) })
+                        .on_press_maybe(Some(i).filter(|_| clist.on_selection.is_some()))
                         .style({
                             if i == clist.selected_channel {
                                 pressed_button_style(theme::Button::Secondary)
