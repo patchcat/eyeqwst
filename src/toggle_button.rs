@@ -1,7 +1,4 @@
-use iced::{
-    widget,
-    Theme,
-};
+use iced::{widget, Theme};
 
 struct PressedButtonStyle {
     inner: iced::theme::Button,

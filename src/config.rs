@@ -92,7 +92,7 @@ impl Drop for Config {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Account {
     pub channels: Vec<Channel>,
 }

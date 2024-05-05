@@ -6,6 +6,7 @@ fn main() -> Result<(), iced::Error> {
     Eyeqwst::run({
         Settings {
             fonts: vec![
+                include_bytes!("../assets/SymbolsNerdFont-Regular.ttf").into(),
                 include_bytes!("../assets/Roboto-BlackItalic.ttf").into(),
                 include_bytes!("../assets/Roboto-Black.ttf").into(),
                 include_bytes!("../assets/Roboto-BoldItalic.ttf").into(),

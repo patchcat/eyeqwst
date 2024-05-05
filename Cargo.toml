@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.30"
-iced = { version = "0.12.1", features = ["lazy", "tokio"] }
+iced = { version = "0.12.1", features = ["lazy", "tokio", "svg"] }
 iced_aw = "0.8.0"
 quaddlecl = { path = "crates/quaddlecl" }
 url = { version = "2.5.0", features = ["serde"] }

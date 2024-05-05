@@ -1,7 +1,38 @@
 use std::time::Duration;
 
+use iced::advanced::widget::text::StyleSheet as TextStyleSheet;
+use iced::widget::TextInput;
+use iced::{advanced::widget::Text, widget::text, Font};
+
 pub async fn sleep(d: Duration) {
     tokio::time::sleep(d).await;
+}
+
+pub trait TextInputExt<'a, Message: Clone> {
+    fn on_input_if(self, cond: bool, msg: impl Fn(String) -> Message + 'a) -> Self;
+}
+
+impl<'a, Message> TextInputExt<'a, Message> for TextInput<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    fn on_input_if(self, cond: bool, msg: impl Fn(String) -> Message + 'a) -> Self {
+        if cond {
+            self.on_input(msg)
+        } else {
+            self
+        }
+    }
+}
+
+pub fn icon<Theme>(s: &str) -> Text<'_, Theme, iced::Renderer>
+where
+    Theme: TextStyleSheet,
+{
+    text(s).font(Font {
+        family: iced::font::Family::Name("Symbols Nerd Font"),
+        ..Font::DEFAULT
+    })
 }
 
 /// iterator over the gaps between neighboring elements in an iterator

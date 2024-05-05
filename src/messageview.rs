@@ -7,7 +7,7 @@ use iced::font::Weight;
 use iced::widget::scrollable::Properties;
 use iced::widget::{column, container, row, scrollable};
 use iced::widget::{text, Column, Space};
-use iced::{Color, Command, Element, Font, Length};
+use iced::{Command, Element, Font, Length, Theme};
 use quaddlecl::model::message::MessageId as QMessageId;
 use quaddlecl::{
     client::http::{self, Http},
@@ -15,16 +15,18 @@ use quaddlecl::{
 };
 
 /// A widget that represents a Quaddle message.
-pub struct QMessageWidget<'a> {
+pub struct QMessageWidget<'a, 'b> {
     msg: &'a QMessage,
     extended_info: bool,
+    theme: &'b Theme,
 }
 
-impl<'a> QMessageWidget<'a> {
-    pub fn new(msg: &'a QMessage) -> Self {
+impl<'a, 'b> QMessageWidget<'a, 'b> {
+    pub fn new(theme: &'b Theme, msg: &'a QMessage) -> Self {
         Self {
             msg,
             extended_info: false,
+            theme,
         }
     }
 
@@ -36,10 +38,11 @@ impl<'a> QMessageWidget<'a> {
     }
 }
 
-impl<'a, Message: 'a> From<QMessageWidget<'a>> for Element<'a, Message> {
+impl<'a, 'b, Message: 'a> From<QMessageWidget<'a, 'b>> for Element<'a, Message> {
     fn from(qmw: QMessageWidget) -> Self {
         let content: Element<'a, Message> = text(&qmw.msg.content)
             .shaping(text::Shaping::Advanced)
+            .width(Length::Fill)
             .into();
         let date_str = qmw
             .msg
@@ -59,11 +62,9 @@ impl<'a, Message: 'a> From<QMessageWidget<'a>> for Element<'a, Message> {
                                 ..crate::DEFAULT_FONT
                             }
                         }),
-                    text(date_str)
-                        .size(10)
-                        .style(iced::theme::Text::Color(Color::from_rgba8(
-                            0xff, 0xff, 0xff, 0.5
-                        )))
+                    text(date_str).size(10).style(iced::theme::Text::Color({
+                        qmw.theme.extended_palette().background.weak.text
+                    }))
                 ]
                 .align_items(iced::Alignment::Center)
                 .spacing(5),
@@ -81,6 +82,7 @@ impl<'a, Message: 'a> From<QMessageWidget<'a>> for Element<'a, Message> {
 pub const QMESSAGELIST_ID: &str = "qmessage_list";
 
 pub fn qmessage_list<'a, Message: 'a>(
+    theme: &Theme,
     messages: impl IntoIterator<Item = &'a QMessage>,
 ) -> Element<'a, Message> {
     let el = scrollable({
@@ -88,7 +90,7 @@ pub fn qmessage_list<'a, Message: 'a>(
             Gaps::new(messages).filter_map(|(lastmsg, curmsg_opt)| {
                 let curmsg = curmsg_opt?;
                 Some({
-                    QMessageWidget::new(curmsg)
+                    QMessageWidget::new(theme, curmsg)
                         .extended_info({
                             !lastmsg.is_some_and(|msg| {
                                 msg.author.id == curmsg.author.id

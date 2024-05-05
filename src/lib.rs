@@ -3,6 +3,8 @@ use std::sync::Arc;
 use auth_screen::AuthScreen;
 use auth_screen::IoMessage as AuthIoMessage;
 use auth_screen::Message as AuthMessage;
+use channel_select::ChannelEditMessage;
+use channel_select::ChannelEditStrip;
 use config::Config;
 use editor::send_message;
 use gateway::{Connection, GatewayMessage};
@@ -66,6 +68,7 @@ pub enum EyeqwstState {
         selected_channel: usize,
         gateway_state: GatewayState,
         /// messages in the current channel
+        channel_edit_strip: ChannelEditStrip,
         messages: Vec<QMessage>,
         editor: text_editor::Content,
     },
@@ -91,6 +94,7 @@ pub enum Message {
     GatewayEvent(GatewayMessage),
     ChannelSelected(usize),
     Editor(EditorMessage),
+    ChannelEditStrip(ChannelEditMessage),
     SentSuccessfully,
     SendError(http::Error),
 }
@@ -129,6 +133,7 @@ impl Application for Eyeqwst {
                     server,
                     selected_channel: 0,
                     gateway_state: GatewayState::Disconnected,
+                    channel_edit_strip: ChannelEditStrip::default(),
                     messages: Vec::default(),
                     editor: text_editor::Content::new(),
                 };
@@ -205,14 +210,15 @@ impl Application for Eyeqwst {
                 },
                 Message::ChannelSelected(new_selected),
             ) => {
-                let Some(channel) =
-                    self.config
-                        .channel_at(gateway_state, server, *selected_channel)
+                let Some(channel) = self.config.channel_at(gateway_state, server, new_selected)
                 else {
                     return Command::none();
                 };
+
+                log::debug!("selected channel: {new_selected}");
                 *selected_channel = new_selected;
                 *messages = Vec::new();
+
                 return retrieve_history(
                     Arc::clone(http),
                     channel.id,
@@ -249,6 +255,33 @@ impl Application for Eyeqwst {
                     snap_to(scrollable::Id::new(QMESSAGELIST_ID), RelativeOffset::START),
                 ]);
             }
+            (
+                EyeqwstState::LoggedIn {
+                    http,
+                    server,
+                    gateway_state,
+                    channel_edit_strip,
+                    ..
+                },
+                Message::ChannelEditStrip(msg),
+            ) => {
+                let Some(channels) = gateway_state.user().map(|user| {
+                    &mut self
+                        .config
+                        .accounts
+                        .entry(server.clone())
+                        .or_default()
+                        .entry(user.id)
+                        .or_default()
+                        .channels
+                }) else {
+                    return Command::none();
+                };
+
+                return channel_edit_strip
+                    .update(msg, channels, Arc::clone(http))
+                    .map(Message::ChannelEditStrip);
+            }
             (EyeqwstState::LoggedIn { messages, .. }, Message::HistoryRetrieved(mut new_msgs)) => {
                 new_msgs.reverse();
                 *messages = new_msgs
@@ -273,6 +306,7 @@ impl Application for Eyeqwst {
                 server,
                 messages,
                 editor,
+                channel_edit_strip,
                 ..
             } => {
                 log::debug!("gateway state: {gateway_state:?}");
@@ -283,16 +317,22 @@ impl Application for Eyeqwst {
                     account_config.and_then(|account| account.channels.get(*selected_channel));
                 row![
                     container({
-                        ChannelList::new(
-                            account_config
-                                .map(|account| account.channels.iter())
-                                .into_iter()
-                                .flatten(),
-                            *selected_channel,
-                        )
-                        .on_selection(Message::ChannelSelected)
+                        column![
+                            channel_edit_strip
+                                .view(&self.theme())
+                                .map(Message::ChannelEditStrip),
+                            ChannelList::new(
+                                account_config
+                                    .map(|account| account.channels.iter())
+                                    .into_iter()
+                                    .flatten(),
+                                *selected_channel,
+                            )
+                            .on_selection(Message::ChannelSelected)
+                        ]
                         .width(Length::Fixed(200.0))
                         .height(Length::Fill)
+                        .spacing(20)
                     })
                     .padding(10)
                     .style({
@@ -311,7 +351,7 @@ impl Application for Eyeqwst {
                         }))
                     }),
                     column![
-                        qmessage_list(messages),
+                        qmessage_list(&self.theme(), messages),
                         Element::from({
                             container({
                                 MessageEditor::new(editor)
@@ -347,6 +387,6 @@ impl Application for Eyeqwst {
     }
 
     fn theme(&self) -> iced::Theme {
-        iced::Theme::Dark
+        iced::Theme::Light
     }
 }
