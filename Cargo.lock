@@ -903,6 +903,7 @@ dependencies = [
 name = "eyeqwst"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "directories",
  "env_logger",
  "futures",

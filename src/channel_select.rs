@@ -1,4 +1,8 @@
-use iced::{theme, widget::{button, scrollable, text, Column}, Element, Length};
+use iced::{
+    theme,
+    widget::{button, scrollable, text, Column},
+    Element, Length,
+};
 
 use crate::{config::Channel, toggle_button::pressed_button_style};
 
@@ -15,14 +19,16 @@ pub struct ChannelList<'a, Message, It> {
 }
 
 impl<'a, Message, It> ChannelList<'a, Message, It>
-where It: IntoIterator<Item = &'a Channel> {
+where
+    It: IntoIterator<Item = &'a Channel>,
+{
     pub fn new(channels: It, selected_channel: usize) -> Self {
         ChannelList {
             selected_channel,
             on_selection: None,
             channels,
             width: Length::Shrink,
-            height: Length::Shrink
+            height: Length::Shrink,
         }
     }
 
@@ -43,44 +49,37 @@ where It: IntoIterator<Item = &'a Channel> {
 }
 
 impl<'a, Message: 'a, It> From<ChannelList<'a, Message, It>> for Element<'a, Message>
-where It: IntoIterator<Item = &'a Channel> {
+where
+    It: IntoIterator<Item = &'a Channel>,
+{
     fn from(clist: ChannelList<'a, Message, It>) -> Self {
         let el: Element<'a, usize> = scrollable({
             Column::with_children({
-                clist
-                    .channels
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, channel)| {
-                        button(text(format!("#{name}", name = channel.name)))
-                            .on_press_maybe({
-                                Some(i)
-                                    .filter(|_| clist.on_selection.is_some())
-                            })
-                            .style({
-                                if i == clist.selected_channel {
-                                    pressed_button_style(theme::Button::Secondary)
-                                } else {
-                                    theme::Button::Secondary
-                                }
-                            })
-                            .padding(5)
-                            .width(Length::Fill)
-                            .into()
-                    })
+                clist.channels.into_iter().enumerate().map(|(i, channel)| {
+                    button(text(format!("#{name}", name = channel.name)))
+                        .on_press_maybe({ Some(i).filter(|_| clist.on_selection.is_some()) })
+                        .style({
+                            if i == clist.selected_channel {
+                                pressed_button_style(theme::Button::Secondary)
+                            } else {
+                                theme::Button::Secondary
+                            }
+                        })
+                        .padding(5)
+                        .width(Length::Fill)
+                        .into()
+                })
             })
-                .width(Length::Fill)
-                .height(Length::Shrink)
+            .width(Length::Fill)
+            .height(Length::Shrink)
         })
-            .width(clist.width)
-            .height(clist.height)
-            .into();
+        .width(clist.width)
+        .height(clist.height)
+        .into();
 
-        el.map(move |i| {
-            match &clist.on_selection {
-                Some(select) => select(i),
-                None => panic!("disabled clist produced a message")
-            }
+        el.map(move |i| match &clist.on_selection {
+            Some(select) => select(i),
+            None => panic!("disabled clist produced a message"),
         })
     }
 }

@@ -48,7 +48,7 @@ pub enum IoMessage {
     SignupSucceeded,
     SignupFailed(Box<dyn Error + Send + Sync>),
     LoginSucceeded(Http, Url),
-    LoginFailed(Box<dyn Error + Send + Sync>)
+    LoginFailed(Box<dyn Error + Send + Sync>),
 }
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ impl Default for AuthScreen {
 
 impl AuthScreen {
     pub fn update(&mut self, msg: Message) -> Command<Message> {
-        use Message::{Ui, Io};
+        use Message::{Io, Ui};
         match msg {
             Ui(UiMessage::ServerUpdated(srv)) => self.server = srv,
             Ui(UiMessage::UsernameUpdated(uname)) => self.username = uname,
@@ -94,12 +94,16 @@ impl AuthScreen {
                     },
                     |res: Result<_, http::Error>| match res {
                         Ok(_) => Io(IoMessage::SignupSucceeded),
-                        Err(e) => Io(IoMessage::SignupFailed(Box::new(e)))
-                    }
-                )
-            },
-            Io(IoMessage::SignupSucceeded) => self.state = AuthScreenState::Signup(ActionState::Success),
-            Io(IoMessage::SignupFailed(err)) => self.state = AuthScreenState::Signup(ActionState::Error(err)),
+                        Err(e) => Io(IoMessage::SignupFailed(Box::new(e))),
+                    },
+                );
+            }
+            Io(IoMessage::SignupSucceeded) => {
+                self.state = AuthScreenState::Signup(ActionState::Success)
+            }
+            Io(IoMessage::SignupFailed(err)) => {
+                self.state = AuthScreenState::Signup(ActionState::Error(err))
+            }
             Ui(UiMessage::LoginInitiated) => {
                 self.state = AuthScreenState::Login(ActionState::InProgress);
                 let server: Url = Url::parse(&self.server).unwrap();
@@ -108,27 +112,36 @@ impl AuthScreen {
                 return Command::perform(
                     async move {
                         let mut http = Http::new(server.clone(), USER_AGENT.to_string())?;
-                        http.login(&username, &password)
-                            .await?;
+                        http.login(&username, &password).await?;
                         Ok((http, server))
                     },
                     |res: Result<_, http::Error>| match res {
                         Ok((http, server)) => Io(IoMessage::LoginSucceeded(http, server)),
                         Err(e) => Io(IoMessage::LoginFailed(Box::new(e))),
-                    }
-                )
-            },
-            Io(IoMessage::LoginFailed(err)) => self.state = AuthScreenState::Login(ActionState::Error(err)),
+                    },
+                );
+            }
+            Io(IoMessage::LoginFailed(err)) => {
+                self.state = AuthScreenState::Login(ActionState::Error(err))
+            }
             Ui(UiMessage::SwitchToLogin) => self.state = AuthScreenState::Login(ActionState::Idle),
-            Ui(UiMessage::SwitchToSignup) => self.state = AuthScreenState::Signup(ActionState::Idle),
-            _ => {},
+            Ui(UiMessage::SwitchToSignup) => {
+                self.state = AuthScreenState::Signup(ActionState::Idle)
+            }
+            _ => {}
         }
 
         Command::none()
     }
 
     pub fn view<'a>(&self, theme: &Theme) -> Element<'a, Message> {
-        let AuthScreen { server, username, password, state, .. } = self;
+        let AuthScreen {
+            server,
+            username,
+            password,
+            state,
+            ..
+        } = self;
         let submit_msg = match state {
             AuthScreenState::Login(_) => UiMessage::LoginInitiated,
             AuthScreenState::Signup(_) => UiMessage::SignupInitiated,
@@ -138,23 +151,31 @@ impl AuthScreen {
                 .push_maybe({
                     match state {
                         AuthScreenState::Login(ActionState::Error(err))
-                            | AuthScreenState::Signup(ActionState::Error(err)) =>
-                            Some(text(err).style(theme.palette().danger)),
-                        AuthScreenState::Signup(ActionState::Success) =>
-                            Some(text("Account successfully created").style(theme.palette().success)),
+                        | AuthScreenState::Signup(ActionState::Error(err)) => {
+                            Some(text(err).style(theme.palette().danger))
+                        }
+                        AuthScreenState::Signup(ActionState::Success) => Some(
+                            text("Account successfully created").style(theme.palette().success),
+                        ),
                         _ => None,
                     }
                 })
-                .push(text_input("Server", server)
-                      .on_input(UiMessage::ServerUpdated)
-                      .on_submit(submit_msg.clone()))
-                .push(text_input("Username", username)
-                      .on_input(UiMessage::UsernameUpdated)
-                      .on_submit(submit_msg.clone()))
-                .push(text_input("Password", password)
-                      .secure(true)
-                      .on_input(UiMessage::PasswordUpdated)
-                      .on_submit(submit_msg.clone()))
+                .push(
+                    text_input("Server", server)
+                        .on_input(UiMessage::ServerUpdated)
+                        .on_submit(submit_msg.clone()),
+                )
+                .push(
+                    text_input("Username", username)
+                        .on_input(UiMessage::UsernameUpdated)
+                        .on_submit(submit_msg.clone()),
+                )
+                .push(
+                    text_input("Password", password)
+                        .secure(true)
+                        .on_input(UiMessage::PasswordUpdated)
+                        .on_submit(submit_msg.clone()),
+                )
                 .push(match state {
                     AuthScreenState::Login(s) => {
                         button(container("Log in").center_x().width(Length::Fill))
@@ -164,8 +185,7 @@ impl AuthScreen {
                                     .filter(|_| !matches!(s, ActionState::InProgress))
                                     .filter(|_| validate_credentials(server, username, password))
                             })
-
-                    },
+                    }
                     AuthScreenState::Signup(s) => {
                         button(container("Sign up").center_x().width(Length::Fill))
                             .width(Length::Fill)
@@ -184,7 +204,7 @@ impl AuthScreen {
                                     .filter(|_| !matches!(s, ActionState::InProgress))
                             })
                             .style(Button::Secondary)
-                    },
+                    }
                     AuthScreenState::Signup(s) => {
                         button(container("Back").center_x().width(Length::Fill))
                             .on_press_maybe({
@@ -192,16 +212,16 @@ impl AuthScreen {
                                     .filter(|_| !matches!(s, ActionState::InProgress))
                             })
                             .style(Button::Secondary)
-                    },
+                    }
                 })
                 .spacing(10)
-                .width(200)
+                .width(200),
         )
-            .center_x()
-            .center_y()
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
+        .center_x()
+        .center_y()
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
         el.map(Message::Ui)
     }
 }

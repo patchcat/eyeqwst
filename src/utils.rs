@@ -6,14 +6,18 @@ pub async fn sleep(d: Duration) {
 
 /// iterator over the gaps between neighboring elements in an iterator
 pub struct Gaps<It>
-where It: Iterator {
+where
+    It: Iterator,
+{
     inner: It,
     prev: Option<It::Item>,
 }
 
 impl<It> Iterator for Gaps<It>
-where It: Iterator,
-      It::Item: Clone {
+where
+    It: Iterator,
+    It::Item: Clone,
+{
     type Item = (Option<It::Item>, Option<It::Item>);
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.inner.next();
@@ -26,9 +30,16 @@ where It: Iterator,
 }
 
 impl<It> Gaps<It>
-where It: Iterator {
+where
+    It: Iterator,
+{
     pub fn new<I>(it: I) -> Self
-    where I: IntoIterator<IntoIter = It> {
-        Self { inner: it.into_iter(), prev: None }
+    where
+        I: IntoIterator<IntoIter = It>,
+    {
+        Self {
+            inner: it.into_iter(),
+            prev: None,
+        }
     }
 }

@@ -4,8 +4,8 @@ use futures::stream::FusedStream;
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use reqwest::header::USER_AGENT;
 use reqwest::Client;
-use reqwest_websocket::{RequestBuilderExt, WebSocket};
 use reqwest_websocket::Message as WsMessage;
+use reqwest_websocket::{RequestBuilderExt, WebSocket};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
@@ -59,7 +59,7 @@ impl Gateway {
     /// Connects to the gateway of the Quaddle instance at `quaddle_url`.
     pub async fn connect(mut quaddle_url: Url, user_agent: String) -> Result<Gateway, Error> {
         let Ok(mut segments) = quaddle_url.path_segments_mut() else {
-            return Err(Error::InvalidUrl(quaddle_url))
+            return Err(Error::InvalidUrl(quaddle_url));
         };
 
         segments.push("app");
@@ -80,8 +80,7 @@ impl Gateway {
 
     /// Sends an identify message and returns the session ID.
     pub async fn identify(&mut self, token: String) -> Result<(String, User), Error> {
-        self.send(ClientGatewayMessage::Identify { token })
-            .await?;
+        self.send(ClientGatewayMessage::Identify { token }).await?;
 
         match self.try_next().await? {
             Some(GatewayEvent::Ready { session_id, user }) => Ok((session_id, user)),
@@ -103,20 +102,33 @@ impl Gateway {
 impl Sink<ClientGatewayMessage> for Gateway {
     type Error = Error;
 
-    fn poll_ready(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.ws.poll_ready_unpin(cx).map_err(Into::into)
     }
 
-    fn start_send(mut self: std::pin::Pin<&mut Self>, msg: ClientGatewayMessage) -> Result<(), Self::Error> {
-        self.ws.start_send_unpin(WsMessage::Text(serde_json::to_string(&msg)?))
+    fn start_send(
+        mut self: std::pin::Pin<&mut Self>,
+        msg: ClientGatewayMessage,
+    ) -> Result<(), Self::Error> {
+        self.ws
+            .start_send_unpin(WsMessage::Text(serde_json::to_string(&msg)?))
             .map_err(Into::into)
     }
 
-    fn poll_flush(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.ws.poll_flush_unpin(cx).map_err(Into::into)
     }
 
-    fn poll_close(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_close(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.ws.poll_close_unpin(cx).map_err(Into::into)
     }
 }
@@ -124,7 +136,10 @@ impl Sink<ClientGatewayMessage> for Gateway {
 impl Stream for Gateway {
     type Item = Result<GatewayEvent, Error>;
 
-    fn poll_next(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
         if self.closed {
             return Poll::Ready(None);
         }
@@ -134,7 +149,9 @@ impl Stream for Gateway {
             .map_err(Error::from)
             .map(|r| match r {
                 Some(Ok(WsMessage::Binary(_))) => Some(Err(Error::UnexpectedBinaryMessage)),
-                Some(Ok(WsMessage::Text(txt))) => Some(serde_json::from_str(&txt).map_err(Into::into)),
+                Some(Ok(WsMessage::Text(txt))) => {
+                    Some(serde_json::from_str(&txt).map_err(Into::into))
+                }
                 Some(Err(e)) => Some(Err(e)),
                 None => None,
             })
@@ -161,8 +178,7 @@ mod tests {
     use crate::client::http::tests::{make_http, make_signed_in, make_username};
 
     pub async fn make_gateway() -> Gateway {
-        let url = Url::parse("http://localhost:8080")
-            .expect("could not parse URL");
+        let url = Url::parse("http://localhost:8080").expect("could not parse URL");
 
         Gateway::connect(url, "quaddlecl tester".to_string())
             .await
@@ -171,8 +187,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connect() {
-        let url = Url::parse("http://localhost:8080")
-            .expect("failed to parse URL");
+        let url = Url::parse("http://localhost:8080").expect("failed to parse URL");
 
         Gateway::connect(url, "quaddlecl tester".to_string())
             .await
@@ -207,13 +222,15 @@ mod tests {
         let http = make_signed_in().await;
         let mut gateway = make_gateway().await;
 
-        gateway.identify(http.token().expect("not logged in").to_string())
-               .await
-               .expect("failed to identify");
+        gateway
+            .identify(http.token().expect("not logged in").to_string())
+            .await
+            .expect("failed to identify");
 
-        gateway.subscribe(ChannelId(1))
-               .await
-               .expect("failed to send the subscribe message");
+        gateway
+            .subscribe(ChannelId(1))
+            .await
+            .expect("failed to send the subscribe message");
 
         http.create_message(ChannelId(1), "sussy balls")
             .await

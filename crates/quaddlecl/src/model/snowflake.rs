@@ -2,8 +2,6 @@ use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 
 use crate::private::Sealed;
 
-
-
 /// The Quaddle epoch.
 pub const EPOCH: DateTime<Utc> = {
     // we have to use let-else because const .unwrap() has not been stabilized
@@ -22,7 +20,9 @@ const TS_OFFSET: u64 = 22;
 
 /// Marker trait for newtypes over snowflakes
 pub trait Snowflake: Into<u64> + Clone + Sealed
-where u64: Into<Self> {
+where
+    u64: Into<Self>,
+{
     /// Gets the timestamp of the snowflake. Should never fail.
     fn timestamp(self) -> DateTime<Utc> {
         EPOCH + TimeDelta::milliseconds(i64::try_from(self.into() >> TS_OFFSET).unwrap())
@@ -46,7 +46,7 @@ macro_rules! newtype_sf_impl {
         }
 
         impl crate::model::snowflake::Snowflake for $ty {}
-    }
+    };
 }
 
 macro_rules! extra_sf_impls {
@@ -59,10 +59,8 @@ macro_rules! extra_sf_impls {
         }
 
         impl ::std::fmt::Display for $ty {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>)
-                   -> Result<(), ::std::fmt::Error> {
-                write!(f, "{id}",
-                       id = self.0)
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
+                write!(f, "{id}", id = self.0)
             }
         }
 
@@ -73,11 +71,11 @@ macro_rules! extra_sf_impls {
                 Ok(Self(u64::from_str(s)?))
             }
         }
-    }
+    };
 }
 
-pub(crate) use newtype_sf_impl;
 pub(crate) use extra_sf_impls;
+pub(crate) use newtype_sf_impl;
 
 #[cfg(test)]
 mod tests {

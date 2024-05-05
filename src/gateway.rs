@@ -2,7 +2,10 @@ use std::{any::TypeId, convert::Infallible, error::Error, time::Duration};
 
 use futures::{channel::mpsc, select, SinkExt, StreamExt};
 use iced::{subscription, Subscription};
-use quaddlecl::{client::gateway::{self, ClientGatewayMessage, Gateway, GatewayEvent}, model::user::User};
+use quaddlecl::{
+    client::gateway::{self, ClientGatewayMessage, Gateway, GatewayEvent},
+    model::user::User,
+};
 use url::Url;
 
 use crate::{utils::sleep, USER_AGENT};
@@ -15,7 +18,7 @@ pub enum GatewayMessage {
     Connected {
         conn: Connection,
         user: User,
-        session_id: String
+        session_id: String,
     },
     ConnectionError(gateway::Error),
     Disconnected,
@@ -33,25 +36,27 @@ enum GatewayState {
     Connected {
         gateway: Gateway,
         receiver: mpsc::UnboundedReceiver<ClientGatewayMessage>,
-    }
+    },
 }
 
-async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, token: String) -> Infallible {
+async fn gateway_service(
+    mut output: mpsc::Sender<GatewayMessage>,
+    url: Url,
+    token: String,
+) -> Infallible {
     let mut state = GatewayState::Disconnected;
     loop {
         match state {
             GatewayState::Disconnected => {
-                let gateway_res = Gateway
-                    ::connect(url.clone(), USER_AGENT.to_string())
-                    .await;
+                let gateway_res = Gateway::connect(url.clone(), USER_AGENT.to_string()).await;
 
                 let mut gateway = match gateway_res {
                     Ok(x) => x,
                     Err(e) => {
                         let _ = output.send(GatewayMessage::ConnectionError(e)).await;
                         sleep(Duration::from_secs(5)).await;
-                        continue
-                    },
+                        continue;
+                    }
                 };
 
                 let (session_id, user) = match gateway.identify(token.to_string()).await {
@@ -59,7 +64,7 @@ async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, tok
                     Err(e) => {
                         let _ = output.send(GatewayMessage::ConnectionError(e)).await;
                         sleep(Duration::from_secs(5)).await;
-                        continue
+                        continue;
                     }
                 };
 
@@ -74,8 +79,11 @@ async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, tok
                     .await;
 
                 state = GatewayState::Connected { gateway, receiver };
-            },
-            GatewayState::Connected { ref mut gateway, ref mut receiver } => {
+            }
+            GatewayState::Connected {
+                ref mut gateway,
+                ref mut receiver,
+            } => {
                 select! {
                     gateway_res = gateway.next() => {
                         match gateway_res {
@@ -107,9 +115,7 @@ async fn gateway_service(mut output: mpsc::Sender<GatewayMessage>, url: Url, tok
 pub fn connect(url: Url, token: String) -> Subscription<GatewayMessage> {
     struct Connect;
 
-    subscription::channel(
-        TypeId::of::<Connect>(),
-        50,
-        |output| gateway_service(output, url, token)
-    )
+    subscription::channel(TypeId::of::<Connect>(), 50, |output| {
+        gateway_service(output, url, token)
+    })
 }

@@ -23,14 +23,17 @@ impl Client {
     /// Logs in and identifies with the gateway.
     pub async fn login(&mut self, name: &str, password: &str) -> Result<(String, User), Error> {
         self.http.login(name, password).await?;
-        let token = self.http.token()
-            .expect("logged in but no token set.");
+        let token = self.http.token().expect("logged in but no token set.");
 
         Ok(self.gateway.identify(token.to_string()).await?)
     }
 
-    pub fn http(&self) -> &Http { &self.http }
-    pub fn gateway(&self) -> &Gateway { &self.gateway }
+    pub fn http(&self) -> &Http {
+        &self.http
+    }
+    pub fn gateway(&self) -> &Gateway {
+        &self.gateway
+    }
 }
 
 impl AsRef<Http> for Client {
@@ -72,14 +75,15 @@ mod tests {
             .await
             .expect("failed to create client");
 
-        client.http()
-              .signup(&uname, "the_meower")
-              .await
-              .expect("failed to sign up");
+        client
+            .http()
+            .signup(&uname, "the_meower")
+            .await
+            .expect("failed to sign up");
 
-        client.login(&uname, "the_meower")
-              .await
-              .expect("failed to log in");
-
+        client
+            .login(&uname, "the_meower")
+            .await
+            .expect("failed to log in");
     }
 }

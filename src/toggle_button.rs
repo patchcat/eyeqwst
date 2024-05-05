@@ -1,4 +1,7 @@
-use iced::{widget::{self, button::StyleSheet}, Theme};
+use iced::{
+    widget::{self, button::StyleSheet},
+    Theme,
+};
 
 struct PressedButtonStyle {
     inner: iced::theme::Button,
@@ -21,7 +24,5 @@ impl widget::button::StyleSheet for PressedButtonStyle {
 }
 
 pub fn pressed_button_style(style: iced::theme::Button) -> iced::theme::Button {
-    iced::theme::Button::custom(PressedButtonStyle {
-        inner: style,
-    })
+    iced::theme::Button::custom(PressedButtonStyle { inner: style })
 }
