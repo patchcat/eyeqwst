@@ -1,9 +1,9 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use auth_screen::AuthScreen;
 use auth_screen::IoMessage as AuthIoMessage;
 use auth_screen::Message as AuthMessage;
-use config::{Config};
+use config::Config;
 use editor::send_message;
 use gateway::{Connection, GatewayMessage};
 use iced::widget::text_editor;
@@ -15,8 +15,7 @@ use iced::{
         self, column, container, row,
         scrollable::{self, snap_to, RelativeOffset},
     },
-    Application, Color, Command, Element, Font, Length, Renderer, Subscription,
-    Theme,
+    Application, Color, Command, Element, Font, Length, Renderer, Subscription, Theme,
 };
 use messageview::{retrieve_history, QMESSAGELIST_ID};
 use quaddlecl::model::message::Message as QMessage;
@@ -25,17 +24,12 @@ use quaddlecl::{
         gateway::{ClientGatewayMessage, GatewayEvent},
         http::{self, Http},
     },
-    model::{user::User},
+    model::user::User,
 };
-
 
 use url::Url;
 
-use crate::{
-    channel_select::ChannelList,
-    editor::MessageEditor,
-    messageview::{qmessage_list},
-};
+use crate::{channel_select::ChannelList, editor::MessageEditor, messageview::qmessage_list};
 
 pub mod auth_screen;
 pub mod channel_select;

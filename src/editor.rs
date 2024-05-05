@@ -1,4 +1,3 @@
-
 use std::sync::Arc;
 
 use iced::advanced::text::highlighter::PlainText;
@@ -6,7 +5,7 @@ use iced::advanced::widget::{tree, Tree};
 use iced::advanced::{text, Widget};
 use iced::event::Status;
 use iced::keyboard::key::Named;
-use iced::keyboard::{Key};
+use iced::keyboard::Key;
 use iced::mouse::Button;
 
 use iced::widget::text_editor::{Action, Content, Motion};

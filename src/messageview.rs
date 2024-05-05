@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::utils::Gaps;
 use chrono::{Local, TimeDelta};
 
-
 use iced::font::Weight;
 use iced::widget::scrollable::Properties;
 use iced::widget::{column, container, row, scrollable};

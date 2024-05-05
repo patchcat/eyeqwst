@@ -1,8 +1,7 @@
 use std::error::Error;
 use std::fmt::Debug;
 
-
-use iced::theme::{Button};
+use iced::theme::Button;
 use iced::widget::{button, container, text, text_input, Column};
 use iced::{Command, Element, Length, Theme};
 use quaddlecl::client::http::{self, Http};
