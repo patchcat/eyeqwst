@@ -1,9 +1,10 @@
 use std::{mem, sync::Arc};
 
 use iced::{
+    font::Weight,
     theme,
     widget::{button, container, row, rule, scrollable, text, text_input, tooltip, Column, Rule},
-    Command, Element, Length,
+    Command, Element, Font, Length,
 };
 use iced::{Alignment, Border, Theme};
 use iced_aw::native::DropDown;
@@ -78,10 +79,16 @@ where
                                     ..t.appearance(&theme::Rule::Default)
                                 }
                             }),
-                            row![icon("\u{f292}").size(20), &*channel.name]
-                                .spacing(5)
-                                .padding(5)
-                                .align_items(Alignment::Center)
+                            row![
+                                icon("\u{f292}").size(20),
+                                text(&channel.name).font(Font {
+                                    weight: Weight::Medium,
+                                    ..crate::DEFAULT_FONT
+                                })
+                            ]
+                            .spacing(5)
+                            .padding(5)
+                            .align_items(Alignment::Center)
                         ]
                         .height(40)
                         .align_items(Alignment::Center)

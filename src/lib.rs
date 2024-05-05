@@ -8,7 +8,9 @@ use channel_select::ChannelEditStrip;
 use config::Config;
 use editor::send_message;
 use gateway::{Connection, GatewayMessage};
+use iced::widget::text;
 use iced::widget::text_editor;
+use iced::Background;
 use iced::{
     executor,
     keyboard::{key, on_key_press, Key},
@@ -20,6 +22,7 @@ use iced::{
     Application, Color, Command, Element, Font, Length, Renderer, Subscription, Theme,
 };
 use messageview::{retrieve_history, QMESSAGELIST_ID};
+use quaddlecl::client;
 use quaddlecl::model::message::Message as QMessage;
 use quaddlecl::{
     client::{
@@ -31,6 +34,8 @@ use quaddlecl::{
 
 use url::Url;
 
+use crate::utils::icon;
+use crate::utils::ErrorWithCauses;
 use crate::{channel_select::ChannelList, editor::MessageEditor, messageview::qmessage_list};
 
 pub mod auth_screen;
@@ -44,18 +49,29 @@ pub mod utils;
 
 const USER_AGENT: &str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
 pub const DEFAULT_FONT: Font = Font::with_name("Roboto");
+pub const DEFAULT_FONT_MEDIUM: Font = Font {
+    weight: iced::font::Weight::Medium,
+    ..DEFAULT_FONT
+};
+const DISCONNECTED: &str = "\u{f0783}";
+const CONNECTING: &str = "\u{f08bd}";
 
 #[derive(Debug)]
 pub enum GatewayState {
-    Disconnected,
-    Connected { user: User, conn: Connection },
+    Disconnected {
+        error: Option<client::gateway::Error>,
+    },
+    Connected {
+        user: User,
+        conn: Connection,
+    },
 }
 
 impl GatewayState {
     pub fn user(&self) -> Option<&User> {
         match self {
             GatewayState::Connected { user, .. } => Some(user),
-            GatewayState::Disconnected => None,
+            GatewayState::Disconnected { .. } => None,
         }
     }
 }
@@ -132,7 +148,7 @@ impl Application for Eyeqwst {
                     http: Arc::new(http),
                     server,
                     selected_channel: 0,
-                    gateway_state: GatewayState::Disconnected,
+                    gateway_state: GatewayState::Disconnected { error: None },
                     channel_edit_strip: ChannelEditStrip::default(),
                     messages: Vec::default(),
                     editor: text_editor::Content::new(),
@@ -176,8 +192,17 @@ impl Application for Eyeqwst {
                     );
                 }
             }
-            (_, Message::GatewayEvent(GatewayMessage::ConnectionError(e))) => {
-                log::warn!("gateway connection error: {e}")
+            (
+                EyeqwstState::LoggedIn { gateway_state, .. },
+                Message::GatewayEvent(GatewayMessage::DialError(error)),
+            ) => {
+                *gateway_state = GatewayState::Disconnected { error: Some(error) };
+            }
+            (
+                EyeqwstState::LoggedIn { gateway_state, .. },
+                Message::GatewayEvent(GatewayMessage::Disconnected),
+            ) => {
+                *gateway_state = GatewayState::Disconnected { error: None };
             }
             (
                 EyeqwstState::LoggedIn {
@@ -315,7 +340,7 @@ impl Application for Eyeqwst {
                     .and_then(|user| self.config.get_account_config(server, user.id));
                 let _channel =
                     account_config.and_then(|account| account.channels.get(*selected_channel));
-                row![
+                let el = row![
                     container({
                         column![
                             channel_edit_strip
@@ -365,8 +390,61 @@ impl Application for Eyeqwst {
                     ]
                 ]
                 .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
+                .height(Length::Fill);
+
+                const CONNECTING_SIZE: u16 = 16;
+                const CONNECTING_ICON_SIZE: u16 = 17;
+                match gateway_state {
+                    GatewayState::Connected { .. } => el.into(),
+                    GatewayState::Disconnected { error } => {
+                        let row = match error {
+                            Some(err) => container(
+                                row![
+                                    icon(crate::DISCONNECTED).size(CONNECTING_ICON_SIZE),
+                                    text(ErrorWithCauses(err))
+                                        .font(DEFAULT_FONT_MEDIUM)
+                                        .size(CONNECTING_SIZE)
+                                ]
+                                .spacing(5)
+                                .padding(10),
+                            )
+                            .style(|t: &Theme| {
+                                use container::StyleSheet;
+                                container::Appearance {
+                                    text_color: Some(t.extended_palette().danger.base.text),
+                                    background: Some(Background::Color(
+                                        t.extended_palette().danger.base.color,
+                                    )),
+                                    ..t.appearance(&theme::Container::Box)
+                                }
+                            }),
+                            None => container(
+                                row![
+                                    icon(crate::CONNECTING).size(CONNECTING_ICON_SIZE),
+                                    text("Connecting...")
+                                        .font(DEFAULT_FONT_MEDIUM)
+                                        .size(CONNECTING_SIZE)
+                                ]
+                                .spacing(5)
+                                .padding(10),
+                            )
+                            .style(|t: &Theme| {
+                                use container::StyleSheet;
+                                container::Appearance {
+                                    text_color: Some(t.extended_palette().background.strong.text),
+                                    background: Some(Background::Color(
+                                        t.extended_palette().background.strong.color,
+                                    )),
+                                    ..t.appearance(&theme::Container::Box)
+                                }
+                            }),
+                        };
+                        column![row.width(Length::Fill).center_x(), el]
+                            .height(Length::Fill)
+                            .width(Length::Fill)
+                            .into()
+                    }
+                }
             }
         }
     }

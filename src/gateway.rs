@@ -20,7 +20,8 @@ pub enum GatewayMessage {
         user: User,
         session_id: String,
     },
-    ConnectionError(gateway::Error),
+    DialError(gateway::Error),
+    ReceiveError(gateway::Error),
     Disconnected,
     Event(GatewayEvent),
 }
@@ -53,7 +54,7 @@ async fn gateway_service(
                 let mut gateway = match gateway_res {
                     Ok(x) => x,
                     Err(e) => {
-                        let _ = output.send(GatewayMessage::ConnectionError(e)).await;
+                        let _ = output.send(GatewayMessage::DialError(e)).await;
                         sleep(Duration::from_secs(5)).await;
                         continue;
                     }
@@ -62,7 +63,7 @@ async fn gateway_service(
                 let (session_id, user) = match gateway.identify(token.to_string()).await {
                     Ok(x) => x,
                     Err(e) => {
-                        let _ = output.send(GatewayMessage::ConnectionError(e)).await;
+                        let _ = output.send(GatewayMessage::DialError(e)).await;
                         sleep(Duration::from_secs(5)).await;
                         continue;
                     }
@@ -93,7 +94,7 @@ async fn gateway_service(
                             },
                             Some(Err(e)) => {
                                 let _ = output
-                                    .try_send(GatewayMessage::ConnectionError(e));
+                                    .try_send(GatewayMessage::ReceiveError(e));
                             },
                             None => {
                                 let _ = output.send(GatewayMessage::Disconnected)

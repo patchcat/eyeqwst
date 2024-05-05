@@ -1,4 +1,7 @@
+use std::fmt;
 use std::time::Duration;
+
+use std::error::Error;
 
 use iced::advanced::widget::text::StyleSheet as TextStyleSheet;
 use iced::widget::TextInput;
@@ -6,6 +9,23 @@ use iced::{advanced::widget::Text, widget::text, Font};
 
 pub async fn sleep(d: Duration) {
     tokio::time::sleep(d).await;
+}
+
+pub struct ErrorWithCauses<E>(pub E);
+
+impl<E> fmt::Display for ErrorWithCauses<E>
+where
+    E: Error,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)?;
+        let mut cur: &dyn Error = &self.0;
+        while let Some(next) = cur.source() {
+            cur = next;
+            write!(f, ": {}", cur)?;
+        }
+        Ok(())
+    }
 }
 
 pub trait TextInputExt<'a, Message: Clone> {
