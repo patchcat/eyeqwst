@@ -25,7 +25,7 @@ impl Config {
             return Default::default();
         };
         let path = dirs.config_dir().join(CONFIG_PATH);
-        let Ok(contents) = fs::read_to_string(&path) else {
+        let Ok(contents) = fs::read_to_string(path) else {
             log::warn!("could not read file");
             return Default::default();
         };
@@ -44,7 +44,7 @@ impl Config {
     }
 
     pub fn get_account_config(&self, quaddle_url: &Url, user: UserId) -> Option<&Account> {
-        Some(self.accounts.get(quaddle_url)?.get(&user)?)
+        self.accounts.get(quaddle_url)?.get(&user)
     }
 
     pub fn channel_at(
@@ -88,7 +88,6 @@ impl Drop for Config {
 
         if let Err(e) = fs::write(path, toml_str) {
             log::warn!("could not write config file: {e}");
-            return;
         }
     }
 }

@@ -40,7 +40,7 @@ pub mod messageview;
 pub mod toggle_button;
 pub mod utils;
 
-const USER_AGENT: &'static str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("eyeqwst/v", env!("CARGO_PKG_VERSION"));
 pub const DEFAULT_FONT: Font = Font::with_name("Roboto");
 
 #[derive(Debug)]
@@ -148,7 +148,7 @@ impl Application for Eyeqwst {
             ) => {
                 let channels = self
                     .config
-                    .get_account_config(&server, user.id)
+                    .get_account_config(server, user.id)
                     .map(|c| c.channels.iter())
                     .into_iter()
                     .flatten();
@@ -160,7 +160,7 @@ impl Application for Eyeqwst {
                 *gateway_state = GatewayState::Connected { user, conn };
                 if let Some(channel) =
                     self.config
-                        .channel_at(gateway_state, &server, *selected_channel)
+                        .channel_at(gateway_state, server, *selected_channel)
                 {
                     return retrieve_history(
                         Arc::clone(http),
@@ -234,13 +234,13 @@ impl Application for Eyeqwst {
             ) => {
                 let Some(channel) =
                     self.config
-                        .channel_at(gateway_state, &server, *selected_channel)
+                        .channel_at(gateway_state, server, *selected_channel)
                 else {
                     return Command::none();
                 };
                 return Command::batch([
                     send_message(
-                        Arc::clone(&http),
+                        Arc::clone(http),
                         editor,
                         channel.id,
                         |_| Message::SentSuccessfully,
@@ -314,7 +314,7 @@ impl Application for Eyeqwst {
                         qmessage_list(messages),
                         Element::from({
                             container({
-                                MessageEditor::new(&editor)
+                                MessageEditor::new(editor)
                                     .on_action(EditorMessage::Action)
                                     .on_enter(EditorMessage::SendInitiated)
                                     .padding(10)
