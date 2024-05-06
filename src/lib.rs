@@ -235,7 +235,7 @@ impl Application for Eyeqwst {
                     ..
                 },
                 Message::ChannelSelected(new_selected),
-            ) => {
+            ) => if new_selected != *selected_channel {
                 let Some(channel) = self.config.channel_at(gateway_state, server, new_selected)
                 else {
                     return Command::none();
