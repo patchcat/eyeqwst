@@ -34,6 +34,14 @@ impl Client {
     pub fn gateway(&self) -> &Gateway {
         &self.gateway
     }
+
+    pub fn http_mut(&mut self) -> &mut Http {
+        &mut self.http
+    }
+
+    pub fn gateway_mut(&mut self) -> &mut Gateway {
+        &mut self.gateway
+    }
 }
 
 impl AsRef<Http> for Client {
