@@ -2,7 +2,9 @@ use eyeqwst::Eyeqwst;
 use iced::{Application, Settings};
 
 fn main() -> Result<(), iced::Error> {
-    env_logger::init();
+    env_logger::builder()
+        .filter(None, log::LevelFilter::Info)
+        .init();
     Eyeqwst::run({
         Settings {
             fonts: vec![
