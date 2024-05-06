@@ -8,6 +8,7 @@ use channel_select::ChannelEditStrip;
 use config::Config;
 use editor::send_message;
 use gateway::{Connection, GatewayMessage};
+use iced::time::Duration;
 use iced::widget::text;
 use iced::widget::text_editor;
 use iced::Background;
@@ -114,6 +115,7 @@ pub enum Message {
     ChannelEditStrip(ChannelEditMessage),
     SentSuccessfully,
     SendError(http::Error),
+    AutoSave,
 }
 
 impl Application for Eyeqwst {
@@ -337,6 +339,7 @@ impl Application for Eyeqwst {
                 EyeqwstState::LoggedIn { editor, .. },
                 Message::Editor(EditorMessage::Action(action)),
             ) => editor.perform(action),
+            (_, Message::AutoSave) => self.config.save(),
             (_, Message::TabPressed) => return widget::focus_next(),
             _ => {}
         }
@@ -483,6 +486,8 @@ impl Application for Eyeqwst {
                 Key::Named(key::Named::Tab) => Some(Message::TabPressed),
                 _ => None,
             }),
+            iced::time::every(Duration::from_secs(10))
+                .map(|_| Message::AutoSave)
         ])
     }
 

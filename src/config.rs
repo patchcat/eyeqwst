@@ -1,14 +1,18 @@
-use std::{collections::HashMap, fs};
+use std::collections::HashMap;
 
+#[cfg(not(target_arch = "wasm32"))]
 use directories::BaseDirs;
 use quaddlecl::model::{channel::ChannelId, user::UserId};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+#[cfg(not(target_arch = "wasm32"))]
+use std::fs;
 use url::Url;
 
 use crate::GatewayState;
 
+#[cfg(not(target_arch = "wasm32"))]
 const CONFIG_PATH: &str = "eyeqwst/config.json";
 
 #[serde_as]
@@ -19,6 +23,7 @@ pub struct Config {
 }
 
 impl Config {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Config {
         let Some(dirs) = BaseDirs::new() else {
             log::warn!("could not get basedirs");
@@ -43,6 +48,23 @@ impl Config {
         config
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn load() -> Config {
+        web_sys::window()
+            .unwrap()
+            .local_storage()
+            .unwrap()
+            .unwrap()
+            .get_item("config")
+            .unwrap()
+            .and_then(|json| {
+                serde_json::from_str(&json)
+                    .inspect_err(|err| log::error!("deserialization error: {err}"))
+                    .ok()
+            })
+            .unwrap_or_default()
+    }
+
     pub fn get_account_config(&self, quaddle_url: &Url, user: UserId) -> Option<&Account> {
         self.accounts.get(quaddle_url)?.get(&user)
     }
@@ -57,10 +79,9 @@ impl Config {
             .channels
             .get(idx)
     }
-}
 
-impl Drop for Config {
-    fn drop(&mut self) {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn save(&mut self) {
         let Some(dirs) = BaseDirs::new() else {
             log::warn!("could not find basedirs");
             return;
@@ -89,6 +110,30 @@ impl Drop for Config {
         if let Err(e) = fs::write(path, toml_str) {
             log::warn!("could not write config file: {e}");
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn save(&mut self) {
+        let json_str = match serde_json::to_string_pretty(&self) {
+            Ok(x) => x,
+            Err(e) => {
+                log::warn!("could not serialize config: {e}");
+                return;
+            }
+        };
+        web_sys::window()
+            .unwrap()
+            .local_storage()
+            .unwrap()
+            .unwrap()
+            .set_item("config", &json_str)
+            .unwrap()
+    }
+}
+
+impl Drop for Config {
+    fn drop(&mut self) {
+        self.save()
     }
 }
 

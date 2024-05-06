@@ -2,9 +2,16 @@ use eyeqwst::Eyeqwst;
 use iced::{Application, Settings};
 
 fn main() -> Result<(), iced::Error> {
-    env_logger::builder()
-        .filter(None, log::LevelFilter::Info)
-        .init();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        env_logger::builder()
+            .filter(None, log::LevelFilter::Info)
+            .init();
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        console_log::init_with_level(log::Level::Info).unwrap();
+    }
     Eyeqwst::run({
         Settings {
             fonts: vec![

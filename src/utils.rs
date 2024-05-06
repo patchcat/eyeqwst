@@ -1,5 +1,5 @@
+use iced::time::Duration;
 use std::fmt;
-use std::time::Duration;
 
 use std::error::Error;
 
@@ -7,8 +7,25 @@ use iced::advanced::widget::text::StyleSheet as TextStyleSheet;
 use iced::widget::TextInput;
 use iced::{advanced::widget::Text, widget::text, Font};
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn sleep(d: Duration) {
     tokio::time::sleep(d).await;
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn sleep(d: Duration) {
+    let mut cb = |resolve, _| {
+        web_sys::window()
+            .unwrap()
+            .set_timeout_with_callback_and_timeout_and_arguments_0(
+                &resolve,
+                d.as_millis().try_into().unwrap_or(i32::MAX),
+            )
+            .unwrap();
+    };
+
+    let fut = js_sys::Promise::new(&mut cb);
+    wasm_bindgen_futures::JsFuture::from(fut).await.unwrap();
 }
 
 pub struct ErrorWithCauses<E>(pub E);

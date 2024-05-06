@@ -15,7 +15,7 @@ use quaddlecl::client::{
 use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;
 
-use crate::{config::Channel, toggle_button::pressed_button_style, utils::icon};
+use crate::{config::Channel, toggle_button::pressed_button_style, utils::{icon, ErrorWithCauses}};
 use crate::{gateway::Connection, utils::TextInputExt};
 
 pub enum ChannelListMessage {
@@ -195,7 +195,10 @@ impl ChannelEditStrip {
                     match &self.state {
                         ChannelEditStripState::Idle {
                             last_error: Some(e),
-                        } => Some(text(e).style(theme::Text::Color(theme.palette().danger))),
+                        } => {
+                            log::warn!("{err}", err = ErrorWithCauses(e));
+                            Some(text(e).style(theme::Text::Color(theme.palette().danger)))
+                        },
                         _ => None,
                     }
                 })
