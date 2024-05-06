@@ -117,13 +117,13 @@ pub fn retrieve_history<Message>(
     http: Arc<Http>,
     channel_id: ChannelId,
     before: Option<QMessageId>,
-    on_success: impl FnOnce(Vec<QMessage>) -> Message + Send + Sync + 'static,
+    on_success: impl FnOnce(ChannelId, Vec<QMessage>) -> Message + Send + Sync + 'static,
     on_error: impl FnOnce(http::Error) -> Message + Send + Sync + 'static,
 ) -> Command<Message> {
     Command::perform(
         async move { http.message_history(channel_id, before).await },
         move |res| match res {
-            Ok(msgs) => on_success(msgs),
+            Ok(msgs) => on_success(channel_id, msgs),
             Err(err) => on_error(err),
         },
     )

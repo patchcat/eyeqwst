@@ -10,6 +10,7 @@ use iced::{Alignment, Border, Theme};
 use iced_aw::native::DropDown;
 use quaddlecl::client::http::{self, Http};
 use quaddlecl::model::channel::ChannelId;
+use quaddlecl::model::message::Message as QMessage;
 
 use crate::utils::TextInputExt;
 use crate::{config::Channel, toggle_button::pressed_button_style, utils::icon};
@@ -124,7 +125,7 @@ pub enum ChannelEditMessage {
     NewChannelNameEdited(String),
     NewChannelIdEdited(String),
     ChannelAddRequested,
-    ChannelExists,
+    ChannelExists(Vec<QMessage>),
     ChannelError(Arc<http::Error>),
 }
 
@@ -245,6 +246,8 @@ impl ChannelEditStrip {
         &mut self,
         msg: ChannelEditMessage,
         channels: &mut Vec<Channel>,
+        selected_channel: &mut usize,
+        messages: &mut Vec<QMessage>,
         http: Arc<Http>,
     ) -> Command<ChannelEditMessage> {
         use ChannelEditStripState::{Confirming, Idle};
@@ -274,13 +277,13 @@ impl ChannelEditStrip {
                     |res| {
                         log::debug!("{res:?}");
                         match res {
-                            Ok(_) => ChannelEditMessage::ChannelExists,
+                            Ok(msgs) => ChannelEditMessage::ChannelExists(msgs),
                             Err(e) => ChannelEditMessage::ChannelError(Arc::new(e)),
                         }
                     },
                 );
             }
-            (s @ Confirming(_), ChannelEditMessage::ChannelExists) => {
+            (s @ Confirming(_), ChannelEditMessage::ChannelExists(msgs)) => {
                 let state = mem::replace(s, ChannelEditStripState::Idle { last_error: None });
                 channels.push(if let Confirming(chan) = state {
                     chan
@@ -288,6 +291,8 @@ impl ChannelEditStrip {
                     unreachable!()
                 });
                 self.expanded = false;
+                *selected_channel = channels.len() - 1;
+                *messages = msgs;
             }
             (Confirming(_), ChannelEditMessage::ChannelError(err)) => {
                 self.state = ChannelEditStripState::Idle {

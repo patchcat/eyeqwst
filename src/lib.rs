@@ -23,6 +23,7 @@ use iced::{
 };
 use messageview::{retrieve_history, QMESSAGELIST_ID};
 use quaddlecl::client;
+use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;
 use quaddlecl::{
     client::{
@@ -105,7 +106,7 @@ pub enum EditorMessage {
 pub enum Message {
     AuthScreen(AuthMessage),
     TabPressed,
-    HistoryRetrieved(Vec<QMessage>),
+    HistoryRetrieved(ChannelId, Vec<QMessage>),
     HistoryRetrievalError(http::Error),
     GatewayEvent(GatewayMessage),
     ChannelSelected(usize),
@@ -284,6 +285,8 @@ impl Application for Eyeqwst {
                 EyeqwstState::LoggedIn {
                     http,
                     server,
+                    messages,
+                    selected_channel,
                     gateway_state,
                     channel_edit_strip,
                     ..
@@ -304,10 +307,26 @@ impl Application for Eyeqwst {
                 };
 
                 return channel_edit_strip
-                    .update(msg, channels, Arc::clone(http))
+                    .update(msg, channels, selected_channel, messages, Arc::clone(http))
                     .map(Message::ChannelEditStrip);
             }
-            (EyeqwstState::LoggedIn { messages, .. }, Message::HistoryRetrieved(mut new_msgs)) => {
+            (
+                EyeqwstState::LoggedIn {
+                    server,
+                    messages,
+                    gateway_state,
+                    selected_channel,
+                    ..
+                },
+                Message::HistoryRetrieved(channel_id, mut new_msgs),
+            ) => {
+                if !self
+                    .config
+                    .channel_at(gateway_state, server, *selected_channel)
+                    .is_some_and(|c| c.id == channel_id)
+                {
+                    return Command::none();
+                }
                 new_msgs.reverse();
                 *messages = new_msgs
             }
