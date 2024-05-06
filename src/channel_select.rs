@@ -287,6 +287,7 @@ impl ChannelEditStrip {
                 } else {
                     unreachable!()
                 });
+                self.expanded = false;
             }
             (Confirming(_), ChannelEditMessage::ChannelError(err)) => {
                 self.state = ChannelEditStripState::Idle {
