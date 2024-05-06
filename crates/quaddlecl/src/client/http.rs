@@ -35,7 +35,7 @@ pub struct Request<Path, Json, Query> {
     pub method: Method,
     pub needs_login: bool,
     pub path: Path,
-    pub json: Json,
+    pub json: Option<Json>,
     pub query: Query,
 }
 
@@ -61,8 +61,11 @@ where
 
         let mut req = client
             .request(self.method, quaddle_url)
-            .json(&self.json)
             .query(&self.query);
+
+        if let Some(json) = self.json {
+            req = req.json(&json);
+        }
 
         if self.needs_login {
             match token {
@@ -149,7 +152,7 @@ impl Http {
                 method: Method::POST,
                 needs_login: false,
                 path: ["auth", "signup"],
-                json: &SignupRequest { name, password },
+                json: Some(SignupRequest { name, password }),
                 query: &(),
             })
             .await?;
@@ -175,7 +178,7 @@ impl Http {
                 method: Method::POST,
                 needs_login: false,
                 path: ["auth", "login"],
-                json: &LoginRequest { name, password },
+                json: Some(LoginRequest { name, password }),
                 query: &(),
             })
             .await?;
@@ -210,7 +213,7 @@ impl Http {
             method: Method::POST,
             needs_login: true,
             path: ["channels", &channel_id.to_string(), "messages"],
-            json: &CreateMessageRequest { content },
+            json: Some(CreateMessageRequest { content }),
             query: (),
         })
         .await
@@ -237,7 +240,7 @@ impl Http {
                 method: Method::GET,
                 needs_login: true,
                 path: ["channels", &channel_id.to_string(), "messages"],
-                json: &(),
+                json: None::<()>,
                 query: &MessageHistoryQuery { before },
             })
             .await?;
