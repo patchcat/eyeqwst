@@ -9,7 +9,7 @@ use url::Url;
 
 use crate::GatewayState;
 
-const CONFIG_PATH: &str = "eyeqwst/config.toml";
+const CONFIG_PATH: &str = "eyeqwst/config.json";
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -30,7 +30,7 @@ impl Config {
             return Default::default();
         };
 
-        let config = match toml::from_str(&contents) {
+        let config = match serde_json::from_str(&contents) {
             Ok(x) => x,
             Err(e) => {
                 log::warn!("error deserializing config: {e}");
@@ -68,7 +68,7 @@ impl Drop for Config {
 
         let path = dirs.config_dir().join(CONFIG_PATH);
 
-        let toml_str = match toml::to_string_pretty(&self) {
+        let toml_str = match serde_json::to_string_pretty(&self) {
             Ok(x) => x,
             Err(e) => {
                 log::warn!("could not serialize config: {e}");
