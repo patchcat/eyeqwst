@@ -235,7 +235,7 @@ impl Application for Eyeqwst {
                     ..
                 },
                 Message::ChannelSelected(new_selected),
-            ) => if new_selected != *selected_channel {
+            ) if new_selected != *selected_channel => {
                 let Some(channel) = self.config.channel_at(gateway_state, server, new_selected)
                 else {
                     return Command::none();
@@ -287,27 +287,30 @@ impl Application for Eyeqwst {
                     server,
                     messages,
                     selected_channel,
-                    gateway_state,
+                    gateway_state: GatewayState::Connected { user, conn },
                     channel_edit_strip,
                     ..
                 },
                 Message::ChannelEditStrip(msg),
             ) => {
-                let Some(channels) = gateway_state.user().map(|user| {
-                    &mut self
-                        .config
-                        .accounts
-                        .entry(server.clone())
-                        .or_default()
-                        .entry(user.id)
-                        .or_default()
-                        .channels
-                }) else {
-                    return Command::none();
-                };
+                let channels = &mut self
+                    .config
+                    .accounts
+                    .entry(server.clone())
+                    .or_default()
+                    .entry(user.id)
+                    .or_default()
+                    .channels;
 
                 return channel_edit_strip
-                    .update(msg, channels, selected_channel, messages, Arc::clone(http))
+                    .update(
+                        msg,
+                        channels,
+                        selected_channel,
+                        messages,
+                        conn,
+                        Arc::clone(http),
+                    )
                     .map(Message::ChannelEditStrip);
             }
             (

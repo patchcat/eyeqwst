@@ -8,12 +8,15 @@ use iced::{
 };
 use iced::{Alignment, Border, Theme};
 use iced_aw::native::DropDown;
-use quaddlecl::client::http::{self, Http};
+use quaddlecl::client::{
+    gateway::ClientGatewayMessage,
+    http::{self, Http},
+};
 use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;
 
-use crate::utils::TextInputExt;
 use crate::{config::Channel, toggle_button::pressed_button_style, utils::icon};
+use crate::{gateway::Connection, utils::TextInputExt};
 
 pub enum ChannelListMessage {
     SelectChannel(usize),
@@ -248,6 +251,7 @@ impl ChannelEditStrip {
         channels: &mut Vec<Channel>,
         selected_channel: &mut usize,
         messages: &mut Vec<QMessage>,
+        gateway_conn: &mut Connection,
         http: Arc<Http>,
     ) -> Command<ChannelEditMessage> {
         use ChannelEditStripState::{Confirming, Idle};
@@ -283,15 +287,19 @@ impl ChannelEditStrip {
                     },
                 );
             }
-            (s @ Confirming(_), ChannelEditMessage::ChannelExists(msgs)) => {
-                let state = mem::replace(s, ChannelEditStripState::Idle { last_error: None });
-                channels.push(if let Confirming(chan) = state {
-                    chan
-                } else {
+            (s @ Confirming(_), ChannelEditMessage::ChannelExists(mut msgs)) => {
+                let Confirming(chan) =
+                    mem::replace(s, ChannelEditStripState::Idle { last_error: None })
+                else {
                     unreachable!()
+                };
+                gateway_conn.send(ClientGatewayMessage::Subscribe {
+                    channel_id: chan.id,
                 });
+                channels.push(chan);
                 self.expanded = false;
                 *selected_channel = channels.len() - 1;
+                msgs.reverse();
                 *messages = msgs;
             }
             (Confirming(_), ChannelEditMessage::ChannelError(err)) => {
