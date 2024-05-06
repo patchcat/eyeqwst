@@ -20,7 +20,7 @@ impl Client {
         })
     }
 
-    /// Logs in and identifies with the gateway.
+    /// Logs in and identifies with the gateway. Returns a (session ID, user) tuple.
     pub async fn login(&mut self, name: &str, password: &str) -> Result<(String, User), Error> {
         self.http.login(name, password).await?;
         let token = self.http.token().expect("logged in but no token set.");
