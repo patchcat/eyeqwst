@@ -13,8 +13,8 @@ This is still a fairly early version of eyeqwst, so expect bugs and a lack of po
 You will need the latest stable version of Rust.
 
 ``` sh
-git clone https://codeberg.org/Makefile_dot_in/Quaddle
-cd Quaddle
+git clone https://codeberg.org/Makefile_dot_in/eyeqwst
+cd eyeqwst
 cargo build --release
 # the binary will be in target/release/eyeqwst
 ```
