@@ -486,6 +486,7 @@ impl Application for Eyeqwst {
                 Key::Named(key::Named::Tab) => Some(Message::TabPressed),
                 _ => None,
             }),
+            #[cfg(target_arch = "wasm32")]
             iced::time::every(Duration::from_secs(10))
                 .map(|_| Message::AutoSave)
         ])
