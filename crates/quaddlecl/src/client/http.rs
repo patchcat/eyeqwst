@@ -59,9 +59,7 @@ where
         path_segments.extend(self.path);
         drop(path_segments);
 
-        let mut req = client
-            .request(self.method, quaddle_url)
-            .query(&self.query);
+        let mut req = client.request(self.method, quaddle_url).query(&self.query);
 
         if let Some(json) = self.json {
             req = req.json(&json);
