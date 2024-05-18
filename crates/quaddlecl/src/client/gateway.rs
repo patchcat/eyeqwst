@@ -48,6 +48,7 @@ pub enum GatewayEvent {
     Ready { session_id: String, user: User },
     Error { reason: String },
     MessageCreate { message: Message },
+    MessageEdit { message: Message },
 }
 
 pub struct Gateway {
@@ -246,5 +247,51 @@ mod tests {
         };
 
         assert_eq!(message.content, "sussy balls");
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
+    async fn test_message_edit() {
+        let http = make_signed_in().await;
+        let mut gateway = make_gateway().await;
+
+        gateway
+            .identify(http.token().unwrap().to_string())
+            .await
+            .expect("failed to identify");
+
+        gateway
+            .subscribe(ChannelId(1))
+            .await
+            .expect("failed to subscribe");
+
+        let msg = http
+            .create_message(ChannelId(1), "sussy balls")
+            .await
+            .expect("failed to send a message");
+
+        http.edit_message(ChannelId(1), msg.id, "sussy balls2")
+            .await
+            .expect("failed to edit a message");
+
+        let arr = gateway
+            .take(2)
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("error getting gateway messages");
+
+        match &arr[..] {
+            &[GatewayEvent::MessageCreate {
+                message: Message { id: id1, .. },
+            }, GatewayEvent::MessageEdit {
+                message:
+                    Message {
+                        id: id2,
+                        content: ref content2,
+                        ..
+                    },
+            }] if id1 == id2 && content2 == "sussy balls2" => {}
+            v => panic!("unexpected messages: {v:?}"),
+        }
     }
 }
