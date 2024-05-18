@@ -30,6 +30,11 @@ struct ApiErrorResponse {
     reason: String,
 }
 
+#[derive(Clone, Deserialize)]
+struct MessageResponse {
+    message: Message,
+}
+
 #[derive(Debug, Clone)]
 pub struct Request<Path, Json, Query> {
     pub method: Method,
@@ -196,6 +201,28 @@ impl Http {
         self.token = Some(tok);
     }
 
+    /// Fetches a message.
+    pub async fn fetch_message(
+        &self,
+        channel_id: ChannelId,
+        message_id: MessageId,
+    ) -> Result<Message, Error> {
+        self.fire(Request {
+            method: Method::GET,
+            needs_login: false,
+            path: [
+                "channels",
+                &channel_id.to_string(),
+                "messages",
+                &message_id.to_string(),
+            ],
+            json: None::<()>,
+            query: (),
+        })
+        .await
+        .map(|r: MessageResponse| r.message)
+    }
+
     /// Creates a message.
     pub async fn create_message(
         &self,
@@ -215,6 +242,34 @@ impl Http {
             query: (),
         })
         .await
+    }
+
+    /// Edits a message.
+    pub async fn edit_message(
+        &self,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        content: &str,
+    ) -> Result<Message, Error> {
+        #[derive(Serialize)]
+        struct EditMessageRequest<'a> {
+            content: &'a str,
+        }
+
+        self.fire(Request {
+            method: Method::PATCH,
+            needs_login: true,
+            path: [
+                "channels",
+                &channel_id.to_string(),
+                "messages",
+                &message_id.to_string(),
+            ],
+            json: Some(EditMessageRequest { content }),
+            query: (),
+        })
+        .await
+        .map(|r: MessageResponse| r.message)
     }
 
     /// Gets message history.
@@ -319,6 +374,25 @@ pub mod tests {
 
     #[tokio::test]
     #[serial(message_create)]
+    async fn test_fetch_message() {
+        let http = make_signed_in().await;
+
+        let msg = http
+            .create_message(ChannelId(1), "meow")
+            .await
+            .expect("failed to create message");
+
+        let fetched_message = http
+            .fetch_message(ChannelId(1), msg.id)
+            .await
+            .expect("failed to fetch message");
+
+        assert_eq!(msg.id, fetched_message.id);
+        assert_eq!(msg.content, fetched_message.content);
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
     async fn test_create_message() {
         let http = make_signed_in().await;
 
@@ -328,6 +402,32 @@ pub mod tests {
             .expect("failed to create message");
 
         assert_eq!(msg.content, "meow");
+    }
+
+    #[tokio::test]
+    #[serial(message_create)]
+    async fn test_edit_message() {
+        let http = make_signed_in().await;
+
+        let msg = http
+            .create_message(ChannelId(1), "meow")
+            .await
+            .expect("failed to create message");
+
+        let edited_message = http
+            .edit_message(ChannelId(1), msg.id, "start doing this")
+            .await
+            .expect("failed to edit message");
+
+        let fetched_message = http
+            .fetch_message(ChannelId(1), msg.id)
+            .await
+            .expect("failed to fetch message");
+
+        assert_eq!(msg.id, edited_message.id);
+        assert_eq!(msg.id, fetched_message.id);
+        assert_eq!("start doing this", edited_message.content);
+        assert_eq!("start doing this", fetched_message.content);
     }
 
     #[tokio::test]
