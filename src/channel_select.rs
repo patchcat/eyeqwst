@@ -15,7 +15,11 @@ use quaddlecl::client::{
 use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;
 
-use crate::{config::Channel, toggle_button::pressed_button_style, utils::{icon, ErrorWithCauses}};
+use crate::{
+    config::Channel,
+    toggle_button::pressed_button_style,
+    utils::{icon, ErrorWithCauses},
+};
 use crate::{gateway::Connection, utils::TextInputExt};
 
 pub enum ChannelListMessage {
@@ -30,9 +34,9 @@ pub struct ChannelList<'a, Message, It> {
     height: Length,
 }
 
-impl<'a, Message, It> ChannelList<'a, Message, It>
+impl<'a, 'b, Message, It> ChannelList<'a, Message, It>
 where
-    It: IntoIterator<Item = &'a Channel>,
+    It: IntoIterator<Item = &'b Channel>,
 {
     pub fn new(channels: It, selected_channel: usize) -> Self {
         ChannelList {
@@ -60,9 +64,9 @@ where
     }
 }
 
-impl<'a, Message: 'a, It> From<ChannelList<'a, Message, It>> for Element<'a, Message>
+impl<'a, 'b, Message: 'a, It> From<ChannelList<'a, Message, It>> for Element<'a, Message>
 where
-    It: IntoIterator<Item = &'a Channel>,
+    It: IntoIterator<Item = &'b Channel>,
 {
     fn from(clist: ChannelList<'a, Message, It>) -> Self {
         let el: Element<'a, usize> = scrollable({
@@ -198,7 +202,7 @@ impl ChannelEditStrip {
                         } => {
                             log::warn!("{err}", err = ErrorWithCauses(e));
                             Some(text(e).style(theme::Text::Color(theme.palette().danger)))
-                        },
+                        }
                         _ => None,
                     }
                 })

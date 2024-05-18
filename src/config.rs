@@ -10,8 +10,6 @@ use serde_with::DisplayFromStr;
 use std::fs;
 use url::Url;
 
-use crate::GatewayState;
-
 #[cfg(not(target_arch = "wasm32"))]
 const CONFIG_PATH: &str = "eyeqwst/config.json";
 
@@ -69,15 +67,12 @@ impl Config {
         self.accounts.get(quaddle_url)?.get(&user)
     }
 
-    pub fn channel_at(
-        &self,
-        gateway_state: &GatewayState,
-        server: &Url,
-        idx: usize,
-    ) -> Option<&Channel> {
-        self.get_account_config(server, gateway_state.user()?.id)?
-            .channels
-            .get(idx)
+    pub fn get_account_config_mut(&mut self, quaddle_url: &Url, user: UserId) -> &mut Account {
+        self.accounts
+            .entry(quaddle_url.clone())
+            .or_default()
+            .entry(user)
+            .or_default()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
