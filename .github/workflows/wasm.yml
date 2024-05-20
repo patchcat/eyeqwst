@@ -1,0 +1,38 @@
+name: wasm
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install
+        run: curl https://sh.rustup.rs -sSfy | sh
+
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo build --release --target wasm32-unknown-unknown
+      - run: cargo install -f wasm-bindgen-cli --version 0.2.91
+      - run: wasm-bindgen target/wasm32-unknown-unknown/release/eyeqwst.wasm --out-dir web/wasm --web
+
+      - uses: actions/upload-pages-artifact@v1
+        with:
+          name: github-pages
+          path: web/
+
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
