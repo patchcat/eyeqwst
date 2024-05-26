@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 futures = "0.3.30"
 iced = { version = "0.12.1", features = ["tokio", "webgl"] }
-iced_aw = { version = "0.8.0", features = ["drop_down"], default-features = false }
+iced_aw = { version = "0.8.0", features = ["drop_down", "floating_element"], default-features = false }
 quaddlecl = { path = "crates/quaddlecl" }
 url = { version = "2.5.0", features = ["serde"] }
 serde = { version = "1.0.198", features = ["derive"] }

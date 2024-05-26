@@ -17,6 +17,7 @@ use quaddlecl::model::message::Message as QMessage;
 
 use crate::{
     config::Channel,
+    messageview::HistoryQMessage,
     toggle_button::pressed_button_style,
     utils::{icon, ErrorWithCauses},
 };
@@ -257,7 +258,7 @@ impl ChannelEditStrip {
         msg: ChannelEditMessage,
         channels: &mut Vec<Channel>,
         selected_channel: &mut usize,
-        messages: &mut Vec<QMessage>,
+        messages: &mut Vec<HistoryQMessage>,
         gateway_conn: &mut Connection,
         http: Arc<Http>,
     ) -> Command<ChannelEditMessage> {
@@ -307,7 +308,7 @@ impl ChannelEditStrip {
                 self.expanded = false;
                 *selected_channel = channels.len() - 1;
                 msgs.reverse();
-                *messages = msgs;
+                *messages = msgs.into_iter().map(HistoryQMessage::new).collect();
             }
             (Confirming(_), ChannelEditMessage::ChannelError(err)) => {
                 self.state = ChannelEditStripState::Idle {

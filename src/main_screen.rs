@@ -15,9 +15,12 @@ use url::Url;
 use crate::channel_select::ChannelEditStrip;
 use crate::channel_select::{ChannelEditMessage, ChannelList};
 use crate::config::{Channel, Config};
-use crate::editor::{send_message, MessageEditor};
+use crate::editor::MessageEditor;
 use crate::gateway::{self, Connection, GatewayMessage};
-use crate::messageview::{qmessage_list, retrieve_history, QMESSAGELIST_ID};
+use crate::messageview::{
+    qmessage_list, retrieve_history, HistoryQMessage, HistoryQMessageId, HistoryQMsgMessage,
+    QMESSAGELIST_ID,
+};
 use crate::utils::{icon, ErrorWithCauses};
 use crate::{CONNECTING, DEFAULT_FONT_MEDIUM, DISCONNECTED};
 
@@ -52,7 +55,7 @@ pub struct MainScreen {
     gateway_state: GatewayState,
     channel_edit_strip: ChannelEditStrip,
     // messages in the current channel
-    messages: Vec<QMessage>,
+    messages: Vec<HistoryQMessage>,
     editor: text_editor::Content,
 }
 
@@ -66,6 +69,8 @@ pub enum EditorMessage {
 pub enum MainScreenMessage {
     HistoryRetrieved(ChannelId, Vec<QMessage>),
     HistoryRetrievalError(http::Error),
+    HistoryMessageAction(usize, HistoryQMsgMessage),
+    HistoryMessageEvent(HistoryQMessageId, HistoryQMsgMessage),
     ChannelSelected(usize),
     Editor(EditorMessage),
     ChannelEditStrip(ChannelEditMessage),
@@ -137,19 +142,37 @@ impl MainScreen {
                 self.messages = Vec::new();
                 self.refresh_messages(config)
             }
+            MainScreenMessage::HistoryMessageAction(idx, msg) => self
+                .messages
+                .get_mut(idx)
+                .map(|qmsg| qmsg.update(msg, &self.http))
+                .unwrap_or_else(|| Command::none())
+                .map(|(id, msg)| MainScreenMessage::HistoryMessageEvent(id, msg)),
+            MainScreenMessage::HistoryMessageEvent(id, msg) => self
+                .messages
+                .iter_mut()
+                .find(|qmsg| qmsg.id() == id)
+                .map(|qmsg| qmsg.update(msg, &self.http))
+                .unwrap_or_else(|| Command::none())
+                .map(|(id, msg)| MainScreenMessage::HistoryMessageEvent(id, msg)),
             MainScreenMessage::Editor(EditorMessage::SendInitiated) => {
                 let Some(channel) = self.selected_channel(config) else {
                     return Command::none();
                 };
 
+                let Some(user) = self.gateway_state.user().cloned() else {
+                    return Command::none();
+                };
+
+                let msg = HistoryQMessage::sending(user, channel.id, self.editor.text());
+                let send_message_cmd = msg
+                    .send(Arc::clone(&self.http))
+                    .map(|(id, msg)| MainScreenMessage::HistoryMessageEvent(id, msg));
+                self.messages.push(msg);
+                self.editor = text_editor::Content::new();
+
                 Command::batch([
-                    send_message(
-                        Arc::clone(&self.http),
-                        &mut self.editor,
-                        channel.id,
-                        |_| MainScreenMessage::SentSuccessfully,
-                        MainScreenMessage::SendError,
-                    ),
+                    send_message_cmd,
                     snap_to(scrollable::Id::new(QMESSAGELIST_ID), RelativeOffset::START),
                 ])
             }
@@ -186,7 +209,7 @@ impl MainScreen {
                 }
 
                 new_msgs.reverse();
-                self.messages = new_msgs;
+                self.messages = new_msgs.into_iter().map(HistoryQMessage::new).collect();
                 Command::none()
             }
             MainScreenMessage::Gateway(msg) => self.on_gateway_message(msg, config),
@@ -204,9 +227,13 @@ impl MainScreen {
             GatewayEvent::MessageCreate { message } => {
                 let is_relevant = self
                     .selected_channel(config)
-                    .is_some_and(|c| c.id == message.channel);
+                    .is_some_and(|c| c.id == message.channel)
+                    && self
+                        .gateway_state
+                        .user()
+                        .is_some_and(|u| u.id != message.author.id);
                 if is_relevant {
-                    self.messages.push(message);
+                    self.messages.push(HistoryQMessage::new(message));
                 }
 
                 Command::none()
@@ -322,7 +349,8 @@ impl MainScreen {
             })
             .into(),
             column([
-                qmessage_list(theme, &self.messages),
+                qmessage_list(theme, &self.messages)
+                    .map(|(idx, a)| MainScreenMessage::HistoryMessageAction(idx, a)),
                 Element::from({
                     container({
                         MessageEditor::new(&self.editor)

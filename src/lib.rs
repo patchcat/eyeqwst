@@ -26,6 +26,7 @@ pub const DEFAULT_FONT_MEDIUM: Font = Font {
 };
 const DISCONNECTED: &str = "\u{f0783}";
 const CONNECTING: &str = "\u{f08bd}";
+const WARNING: &str = "\u{f071}";
 
 pub enum EyeqwstState {
     Authenticating(AuthScreen),

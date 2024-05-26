@@ -15,24 +15,6 @@ use quaddlecl::client::http::{self, Http};
 use quaddlecl::model::channel::ChannelId;
 use quaddlecl::model::message::Message as QMessage;
 
-pub fn send_message<Message>(
-    http: Arc<Http>,
-    editor: &mut Content<Renderer>,
-    channel_id: ChannelId,
-    on_success: impl FnOnce(QMessage) -> Message + Send + Sync + 'static,
-    on_error: impl FnOnce(http::Error) -> Message + Send + Sync + 'static,
-) -> Command<Message> {
-    let msgtext = editor.text();
-    *editor = Content::new();
-    Command::perform(
-        async move { http.create_message(channel_id, &msgtext).await },
-        |res| match res {
-            Ok(x) => on_success(x),
-            Err(e) => on_error(e),
-        },
-    )
-}
-
 pub struct MessageEditor<'a, Highlighter, Message, Theme = iced::Theme, Renderer = iced::Renderer>
 where
     Highlighter: text::Highlighter,
