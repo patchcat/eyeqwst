@@ -30,11 +30,6 @@ struct ApiErrorResponse {
     reason: String,
 }
 
-#[derive(Clone, Deserialize)]
-struct MessageResponse {
-    message: Message,
-}
-
 #[derive(Debug, Clone)]
 pub struct Request<Path, Json, Query> {
     pub method: Method,
@@ -220,7 +215,6 @@ impl Http {
             query: (),
         })
         .await
-        .map(|r: MessageResponse| r.message)
     }
 
     /// Creates a message.
@@ -269,7 +263,6 @@ impl Http {
             query: (),
         })
         .await
-        .map(|r: MessageResponse| r.message)
     }
 
     /// Gets message history.
@@ -278,27 +271,19 @@ impl Http {
         channel_id: ChannelId,
         before: Option<MessageId>,
     ) -> Result<Vec<Message>, Error> {
-        #[derive(Deserialize)]
-        struct MessageHistoryResponse {
-            messages: Vec<Message>,
-        }
-
         #[derive(Serialize)]
         struct MessageHistoryQuery {
             before: Option<MessageId>,
         }
 
-        let r: MessageHistoryResponse = self
-            .fire(Request {
-                method: Method::GET,
-                needs_login: true,
-                path: ["channels", &channel_id.to_string(), "messages"],
-                json: None::<()>,
-                query: &MessageHistoryQuery { before },
-            })
-            .await?;
-
-        Ok(r.messages)
+        self.fire(Request {
+            method: Method::GET,
+            needs_login: true,
+            path: ["channels", &channel_id.to_string(), "messages"],
+            json: None::<()>,
+            query: &MessageHistoryQuery { before },
+        })
+        .await
     }
 }
 
