@@ -5,7 +5,9 @@ use super::snowflake::{extra_sf_impls, newtype_sf_impl};
 use super::user::User;
 
 /// Not exposed to clients yet.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default,
+)]
 #[serde(transparent)]
 pub struct MessageId(pub u64);
 
@@ -13,7 +15,7 @@ newtype_sf_impl!(MessageId);
 extra_sf_impls!(MessageId);
 
 /// Represents a Quaddle message. It is rather empty for now...
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub struct Message {
     pub id: MessageId,
