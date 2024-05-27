@@ -8,6 +8,9 @@ use iced::{executor, widget, Application, Command, Element, Renderer, Subscripti
 use main_screen::MainScreen;
 use main_screen::MainScreenMessage;
 
+#[cfg(target_arch = "wasm32")]
+use iced::time::Duration;
+
 pub mod auth_screen;
 pub mod channel_select;
 pub mod config;
